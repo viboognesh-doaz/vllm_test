@@ -9,6 +9,8 @@ requires = [
     "torch == 2.7.1",
     "wheel",
     "jinja2",
+    "regex",
+    "yappi"
 ]
 build-backend = "setuptools.build_meta"
 

@@ -106,6 +106,8 @@ from vllm.utils import (Device, FlexibleArgumentParser, get_open_zmq_ipc_path,
 from vllm.v1.metrics.prometheus import get_prometheus_registry
 from vllm.version import __version__ as VLLM_VERSION
 
+import yappi
+
 prometheus_multiproc_dir: tempfile.TemporaryDirectory
 
 # Cannot use __name__ (https://github.com/vllm-project/vllm/pull/4765)
@@ -116,6 +118,7 @@ _running_tasks: set[asyncio.Task] = set()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    yappi.start()
     try:
         if app.state.log_stats:
             engine_client: EngineClient = app.state.engine_client
@@ -138,6 +141,12 @@ async def lifespan(app: FastAPI):
         try:
             yield
         finally:
+            stats = yappi.get_func_stats()
+            ps = yappi.convert2pstats(stats.get())
+            # TIME is total time spent within function excluding callees
+            ps = ps.sort_stats(pstats.SortKey.TIME)
+            ps.dump_stats("profile.stats")  # Dump profiling info to profile.stats
+            ps.print_stats(20)  # Printing the top 20 calls
             if task is not None:
                 task.cancel()
     finally:
