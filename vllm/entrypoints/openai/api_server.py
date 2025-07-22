@@ -119,7 +119,6 @@ _running_tasks: set[asyncio.Task] = set()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yappi.start()
     try:
         if app.state.log_stats:
             engine_client: EngineClient = app.state.engine_client
@@ -139,6 +138,7 @@ async def lifespan(app: FastAPI):
         # Reduces pause times of oldest generation collections.
         gc.collect()
         gc.freeze()
+        yappi.start()
         try:
             yield
         finally:
@@ -147,9 +147,10 @@ async def lifespan(app: FastAPI):
             # TIME is total time spent within function excluding callees
             ps = ps.sort_stats(pstats.SortKey.TIME)
             ps.dump_stats("profile.stats")  # Dump profiling info to profile.stats
-            ps.print_stats(20)  # Printing the top 20 calls
+            ps.print_stats(20)  
             if task is not None:
                 task.cancel()
+
     finally:
         # Ensure app state including engine ref is gc'd
         del app.state
