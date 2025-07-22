@@ -107,6 +107,7 @@ from vllm.v1.metrics.prometheus import get_prometheus_registry
 from vllm.version import __version__ as VLLM_VERSION
 
 import yappi
+import pstats
 
 prometheus_multiproc_dir: tempfile.TemporaryDirectory
 
