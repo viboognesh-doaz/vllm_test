@@ -157,6 +157,7 @@ async def lifespan(app: FastAPI):
                     break
                 i += 1
             ps.dump_stats(profile_stats_path)  
+            ps.dump_stats("profile.stats")
             # Dump profiling info to profile.stats
             ps.print_stats(20)  
             if task is not None:
