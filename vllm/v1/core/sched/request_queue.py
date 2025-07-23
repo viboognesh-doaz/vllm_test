@@ -1,22 +1,15 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from __future__ import annotations
-
-import heapq
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterable, Iterator
 from enum import Enum
-
 from vllm.v1.request import Request
-
+import heapq
 
 class SchedulingPolicy(Enum):
     """Enum for scheduling policies."""
-    FCFS = "fcfs"
-    PRIORITY = "priority"
-
+    FCFS = 'fcfs'
+    PRIORITY = 'priority'
 
 class RequestQueue(ABC):
     """Abstract base class for request queues."""
@@ -77,7 +70,6 @@ class RequestQueue(ABC):
         """Iterate over the queue in reverse order."""
         pass
 
-
 class FCFSRequestQueue(deque[Request], RequestQueue):
     """A first-come-first-served queue that supports deque operations."""
 
@@ -92,7 +84,7 @@ class FCFSRequestQueue(deque[Request], RequestQueue):
     def peek_request(self) -> Request:
         """Peek at the next request in the queue without removing it."""
         if not self:
-            raise IndexError("peek from an empty queue")
+            raise IndexError('peek from an empty queue')
         return self[0]
 
     def prepend_request(self, request: Request) -> None:
@@ -111,11 +103,7 @@ class FCFSRequestQueue(deque[Request], RequestQueue):
     def remove_requests(self, requests: Iterable[Request]) -> None:
         """Remove multiple specific requests from the queue."""
         requests_to_remove = set(requests)
-        filtered_requests = [
-            req for req in self if req not in requests_to_remove
-        ]
-        # deque does not support in-place filtering, so we need to clear
-        # and extend
+        filtered_requests = [req for req in self if req not in requests_to_remove]
         self.clear()
         self.extend(filtered_requests)
 
@@ -135,7 +123,6 @@ class FCFSRequestQueue(deque[Request], RequestQueue):
         """Iterate over the queue in reverse order."""
         return super().__reversed__()
 
-
 class PriorityRequestQueue(RequestQueue):
     """
     A priority queue that supports heap operations.
@@ -150,20 +137,19 @@ class PriorityRequestQueue(RequestQueue):
 
     def add_request(self, request: Request) -> None:
         """Add a request to the queue according to priority policy."""
-        heapq.heappush(self._heap,
-                       (request.priority, request.arrival_time, request))
+        heapq.heappush(self._heap, (request.priority, request.arrival_time, request))
 
     def pop_request(self) -> Request:
         """Pop a request from the queue according to priority policy."""
         if not self._heap:
-            raise IndexError("pop from empty heap")
+            raise IndexError('pop from empty heap')
         _, _, request = heapq.heappop(self._heap)
         return request
 
     def peek_request(self) -> Request:
         """Peek at the next request in the queue without removing it."""
         if not self._heap:
-            raise IndexError("peek from empty heap")
+            raise IndexError('peek from empty heap')
         _, _, request = self._heap[0]
         return request
 
@@ -190,8 +176,7 @@ class PriorityRequestQueue(RequestQueue):
     def remove_requests(self, requests: Iterable[Request]) -> None:
         """Remove multiple specific requests from the queue."""
         requests_to_remove = set(requests)
-        self._heap = [(p, t, r) for p, t, r in self._heap
-                      if r not in requests_to_remove]
+        self._heap = [(p, t, r) for p, t, r in self._heap if r not in requests_to_remove]
         heapq.heapify(self._heap)
 
     def __bool__(self) -> bool:
@@ -213,7 +198,6 @@ class PriorityRequestQueue(RequestQueue):
         """Iterate over the queue in reverse priority order."""
         return reversed(list(self))
 
-
 def create_request_queue(policy: SchedulingPolicy) -> RequestQueue:
     """Create request queue based on scheduling policy."""
     if policy == SchedulingPolicy.PRIORITY:
@@ -221,4 +205,4 @@ def create_request_queue(policy: SchedulingPolicy) -> RequestQueue:
     elif policy == SchedulingPolicy.FCFS:
         return FCFSRequestQueue()
     else:
-        raise ValueError(f"Unknown scheduling policy: {policy}")
+        raise ValueError(f'Unknown scheduling policy: {policy}')

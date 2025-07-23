@@ -1,78 +1,34 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from collections.abc import Iterable, Mapping
-from types import MappingProxyType
-from typing import Optional
-
-import regex as re
 from compressed_tensors import CompressionFormat
 from torch.nn import Module
-
+from types import MappingProxyType
+from typing import Optional
+import regex as re
 
 def is_activation_quantization_format(format: str) -> bool:
-    _ACTIVATION_QUANTIZATION_FORMATS = [
-        CompressionFormat.naive_quantized.value,
-        CompressionFormat.int_quantized.value,
-        CompressionFormat.float_quantized.value,
-        CompressionFormat.nvfp4_pack_quantized.value
-    ]
+    _ACTIVATION_QUANTIZATION_FORMATS = [CompressionFormat.naive_quantized.value, CompressionFormat.int_quantized.value, CompressionFormat.float_quantized.value, CompressionFormat.nvfp4_pack_quantized.value]
     return format in _ACTIVATION_QUANTIZATION_FORMATS
 
-
-def should_ignore_layer(
-    layer_name: Optional[str],
-    ignore: Iterable[str] = tuple(),
-    fused_mapping: Mapping[str, list[str]] = MappingProxyType({})
-) -> bool:
+def should_ignore_layer(layer_name: Optional[str], ignore: Iterable[str]=tuple(), fused_mapping: Mapping[str, list[str]]=MappingProxyType({})) -> bool:
     if layer_name is None:
         return False
-
-    # layer_name = model.layers.0.self_attn.qkv_proj
-    # proj_name = qkv_proj
-    proj_name = layer_name.split(".")[-1]
-
-    # Fused layers like gate_up_proj or qkv_proj will not be fused
-    # in the safetensors checkpoint. So, we convert the name
-    # from the fused version to unfused + check to make sure that
-    # each shard of the fused layer has the same scheme.
+    proj_name = layer_name.split('.')[-1]
     if proj_name in fused_mapping and layer_name not in ignore:
         shard_proj_names = fused_mapping[proj_name]
-
-        # Convert fused_name --> [shard_names]
-        shard_names = [
-            layer_name.replace(proj_name, shard_proj_name)
-            for shard_proj_name in shard_proj_names
-        ]
-
-        # Layer should be ignored if shards are ignored.
+        shard_names = [layer_name.replace(proj_name, shard_proj_name) for shard_proj_name in shard_proj_names]
         should_ignore_layer = None
         for shard_name in shard_names:
-            should_ignore_shard = check_equal_or_regex_match(
-                layer_name=shard_name, targets=ignore)
-
-            # If shard_idx=0, set layer ignore to match shard.
+            should_ignore_shard = check_equal_or_regex_match(layer_name=shard_name, targets=ignore)
             if should_ignore_layer is None:
                 should_ignore_layer = should_ignore_shard
-
-            # If shard_idx=1+ confirm scheme matches prior shards.
             elif should_ignore_shard != should_ignore_layer:
-                raise ValueError(f"Found a different quantization schemes for "
-                                 f"{shard_proj_names} in {layer_name}. vLLM "
-                                 "requires all to use the same scheme.")
-
-    # Unfused layers like down_proj and o_proj will match
-    # the safetensors checkpoint already.
+                raise ValueError(f'Found a different quantization schemes for {shard_proj_names} in {layer_name}. vLLM requires all to use the same scheme.')
     else:
-        should_ignore_layer = check_equal_or_regex_match(layer_name=layer_name,
-                                                         targets=ignore)
-
+        should_ignore_layer = check_equal_or_regex_match(layer_name=layer_name, targets=ignore)
     assert should_ignore_layer is not None
     return should_ignore_layer
 
-
-def check_equal_or_regex_match(layer_name: str,
-                               targets: Iterable[str]) -> bool:
+def check_equal_or_regex_match(layer_name: str, targets: Iterable[str]) -> bool:
     """
     Checks whether a layer_name is exactly equal or a regex match for
     if target starts with 're:' to any target in list.
@@ -82,13 +38,7 @@ def check_equal_or_regex_match(layer_name: str,
             return True
     return False
 
-
-def find_matched_target(
-    layer_name: Optional[str],
-    module: Module,
-    targets: Iterable[str],
-    fused_mapping: Mapping[str, list[str]] = MappingProxyType({})
-) -> str:
+def find_matched_target(layer_name: Optional[str], module: Module, targets: Iterable[str], fused_mapping: Mapping[str, list[str]]=MappingProxyType({})) -> str:
     """
     Helper function to look up which "target" in the compressed-tensors
     config that a layer corresponds to.
@@ -113,26 +63,14 @@ def find_matched_target(
     :param fused_strategy: either "all" or "any". If using "all", fused
         layers match if "all" of its components match
     """
-
     if layer_name is None:
-        layer_name = ""
-
-    matched_target = (
-        _find_first_match(layer_name, targets)
-        or _find_first_match(module.__class__.__name__, targets, True)
-        or _match_fused_layer(layer_name, targets, fused_mapping))
-
+        layer_name = ''
+    matched_target = _find_first_match(layer_name, targets) or _find_first_match(module.__class__.__name__, targets, True) or _match_fused_layer(layer_name, targets, fused_mapping)
     if matched_target is None:
-        raise ValueError(
-            f"Unable to find matching target for {layer_name} in the "
-            "compressed-tensors config.")
-
+        raise ValueError(f'Unable to find matching target for {layer_name} in the compressed-tensors config.')
     return matched_target
 
-
-def _find_first_match(value: str,
-                      targets: Iterable[str],
-                      check_contains: bool = False) -> Optional[str]:
+def _find_first_match(value: str, targets: Iterable[str], check_contains: bool=False) -> Optional[str]:
     """
     Returns first element of target that matches value either
     exactly or as a regex after 're:'. If check_contains is set to True,
@@ -142,25 +80,18 @@ def _find_first_match(value: str,
     :param targets: list of targets to match the layer against
     :param check_contains: whether or not to do a substring match
     """
-
     for target in targets:
-        if _is_equal_or_regex_match(value,
-                                    target,
-                                    check_contains=check_contains):
+        if _is_equal_or_regex_match(value, target, check_contains=check_contains):
             return target
     return None
 
-
-def _is_equal_or_regex_match(value: str,
-                             target: str,
-                             check_contains: bool = False) -> bool:
+def _is_equal_or_regex_match(value: str, target: str, check_contains: bool=False) -> bool:
     """
     Checks whether a value is exactly equal or a regex match for target
     if target starts with 're:'. If check_contains is set to True,
     additionally checks if the target string is contained within the value.
     """
-
-    if target.startswith("re:"):
+    if target.startswith('re:'):
         pattern = target[3:]
         if re.match(pattern, value):
             return True
@@ -171,10 +102,7 @@ def _is_equal_or_regex_match(value: str,
         return True
     return False
 
-
-def _match_fused_layer(
-        layer_name: str, target_layers: Iterable[str],
-        fused_mapping: Mapping[str, list[str]]) -> Optional[str]:
+def _match_fused_layer(layer_name: str, target_layers: Iterable[str], fused_mapping: Mapping[str, list[str]]) -> Optional[str]:
     """
     Match a fused layer name to its corresponding individual layer in 
     target_layers. Returns first value in fused_mapping which matches targets
@@ -192,18 +120,10 @@ def _match_fused_layer(
                         "model.layers.0.self_attn.k_proj",
                         "model.layers.0.self_attn.v_proj"]
     """
-    # find layer_name in mapping
-    fused = next((key for key in fused_mapping if layer_name.endswith(key)),
-                 None)
+    fused = next((key for key in fused_mapping if layer_name.endswith(key)), None)
     if fused is None:
         return None
-
-    # expand path of unfused components
-    unfused_paths = [
-        layer_name.replace(fused, unfused) for unfused in fused_mapping[fused]
-    ]
-
-    # for each unfused component, find a match in targets
+    unfused_paths = [layer_name.replace(fused, unfused) for unfused in fused_mapping[fused]]
     unfused_matches: list[Optional[str]] = []
     for unfused in unfused_paths:
         for target in target_layers:
@@ -212,5 +132,4 @@ def _match_fused_layer(
                 break
         else:
             unfused_matches.append(None)
-
     return unfused_matches[0] if all(unfused_matches) else None

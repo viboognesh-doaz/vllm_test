@@ -1,21 +1,7 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""
-This file defines an interface `KVPipeBase`
-that provides an abstraction for sending and receiving tensors, or None, via
-distributed communications.
-
-All classes instantiated from this interface are assumed to be a FIFO pipe.
-
-If your distributed communication platform already supports key-value lookup,
-you can bypass this interface and directly start from `kv_lookup_buffer`.
-"""
-
 from abc import ABC, abstractmethod
 from typing import Optional
-
 import torch
-
+'\nThis file defines an interface `KVPipeBase`\nthat provides an abstraction for sending and receiving tensors, or None, via\ndistributed communications.\n\nAll classes instantiated from this interface are assumed to be a FIFO pipe.\n\nIf your distributed communication platform already supports key-value lookup,\nyou can bypass this interface and directly start from `kv_lookup_buffer`.\n'
 
 class KVPipeBase(ABC):
     """

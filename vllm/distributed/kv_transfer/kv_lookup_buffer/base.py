@@ -1,23 +1,7 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""
-This file contains a new class `KVLookupBufferBase` that allows developers to
-think of KV cache operations as inserting new KV cache entries (`insert`)
-into the lookup buffer and querying existing KV caches (`drop_select`)
-from the lookup buffer.
-
-This file also contains a new class `KVStoreBufferBase` that allows developers
-to manage the KVCache buffer as a simple key-value storage buffer with basic
-put/get operations.
-
-These classes above are abstracted behind class `KVCacheBufferBase`.
-"""
-
 from abc import ABC, abstractmethod
 from typing import Optional
-
 import torch
-
+'\nThis file contains a new class `KVLookupBufferBase` that allows developers to\nthink of KV cache operations as inserting new KV cache entries (`insert`)\ninto the lookup buffer and querying existing KV caches (`drop_select`)\nfrom the lookup buffer.\n\nThis file also contains a new class `KVStoreBufferBase` that allows developers\nto manage the KVCache buffer as a simple key-value storage buffer with basic\nput/get operations.\n\nThese classes above are abstracted behind class `KVCacheBufferBase`.\n'
 
 class KVCacheBufferBase(ABC):
     """
@@ -35,7 +19,6 @@ class KVCacheBufferBase(ABC):
             NotImplementedError: This method must be implemented in subclasses.
         """
         raise NotImplementedError
-
 
 class KVLookupBufferBase(KVCacheBufferBase):
     """
@@ -62,9 +45,7 @@ class KVLookupBufferBase(KVCacheBufferBase):
     """
 
     @abstractmethod
-    def insert(self, input_tokens: torch.Tensor, roi: torch.Tensor,
-               key: torch.Tensor, value: torch.Tensor,
-               hidden: torch.Tensor) -> None:
+    def insert(self, input_tokens: torch.Tensor, roi: torch.Tensor, key: torch.Tensor, value: torch.Tensor, hidden: torch.Tensor) -> None:
         """Insert into the lookup buffer.
         
         The functionality is similar to the following python statement
@@ -92,9 +73,7 @@ class KVLookupBufferBase(KVCacheBufferBase):
         raise NotImplementedError
 
     @abstractmethod
-    def drop_select(
-            self, input_tokens: Optional[torch.Tensor],
-            roi: Optional[torch.Tensor]) -> list[Optional[torch.Tensor]]:
+    def drop_select(self, input_tokens: Optional[torch.Tensor], roi: Optional[torch.Tensor]) -> list[Optional[torch.Tensor]]:
         """Select and *drop* KV cache entries from the lookup buffer.
         
         The functionality is similar to the following python statements
@@ -119,7 +98,6 @@ class KVLookupBufferBase(KVCacheBufferBase):
         """
         raise NotImplementedError
 
-
 class KVStoreBufferBase(KVCacheBufferBase):
     """
     Abstract base class for a KVCache storage buffer with key-value semantics.
@@ -135,11 +113,7 @@ class KVStoreBufferBase(KVCacheBufferBase):
     """
 
     @abstractmethod
-    def put(
-        self,
-        key: str,
-        value: Optional[torch.Tensor],
-    ) -> None:
+    def put(self, key: str, value: Optional[torch.Tensor]) -> None:
         """Store a key-value pair in the buffer.
 
         Args:
@@ -155,10 +129,7 @@ class KVStoreBufferBase(KVCacheBufferBase):
         raise NotImplementedError
 
     @abstractmethod
-    def get(
-        self,
-        key: str,
-    ) -> Optional[torch.Tensor]:
+    def get(self, key: str) -> Optional[torch.Tensor]:
         """Retrieve a value from the buffer by key.
 
         Args:

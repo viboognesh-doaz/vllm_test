@@ -1,12 +1,7 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-import pytest
-import torch
-
 from tests.kernels.utils import opcheck
 from vllm._custom_ops import permute_cols
-
+import pytest
+import torch
 
 @pytest.mark.parametrize('shape', [(1, 512), (544, 4096), (67, 8192)])
 @pytest.mark.parametrize('dtype', [torch.bfloat16, torch.float16])

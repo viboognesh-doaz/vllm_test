@@ -1,23 +1,12 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-# cumem-based pytorch pluggable allocator to implement sleep mode.
-# other approaches tried but failed:
-# - cuda-python package binding
-# - custom libcuda driver ctypes wrapper
-# both of them failed because of cuda context mismatch.
-# not sure why, they are created from a different context.
-# the only successful approach is to call cuda driver API in C.
+from contextlib import contextmanager
+from typing import Any, Callable, Optional, Union
+from vllm.cumem_allocator import init_module, python_create_and_map, python_unmap_and_release
+from vllm.distributed.device_communicators.cuda_wrapper import CudaRTLibrary
+from vllm.utils import is_pin_memory_available
 import dataclasses
 import gc
 import os
-from contextlib import contextmanager
-from typing import Any, Callable, Optional, Union
-
 import torch
-
-from vllm.utils import is_pin_memory_available
-
 
 def find_loaded_library(lib_name) -> Optional[str]:
     """
@@ -25,47 +14,33 @@ def find_loaded_library(lib_name) -> Optional[str]:
     the file `/proc/self/maps` contains the memory maps of the process, which includes the
     shared libraries loaded by the process. We can use this file to find the path of the
     a loaded library.
-    """ # noqa
+    """
     found_line = None
-    with open("/proc/self/maps") as f:
+    with open('/proc/self/maps') as f:
         for line in f:
             if lib_name in line:
                 found_line = line
                 break
     if found_line is None:
-        # the library is not loaded in the current process
         return None
-    # if lib_name is libcudart, we need to match a line with:
-    # address /path/to/libcudart-hash.so.11.0
-    start = found_line.index("/")
+    start = found_line.index('/')
     path = found_line[start:].strip()
-    filename = path.split("/")[-1]
-    assert filename.rpartition(".so")[0].startswith(lib_name), \
-        f"Unexpected filename: {filename} for library {lib_name}"
+    filename = path.split('/')[-1]
+    assert filename.rpartition('.so')[0].startswith(lib_name), f'Unexpected filename: {filename} for library {lib_name}'
     return path
-
-
 cumem_available = False
 try:
-    from vllm.cumem_allocator import (init_module, python_create_and_map,
-                                      python_unmap_and_release)
-    from vllm.distributed.device_communicators.cuda_wrapper import (
-        CudaRTLibrary)
-    lib_name = find_loaded_library("cumem_allocator")
+    lib_name = find_loaded_library('cumem_allocator')
     libcudart = CudaRTLibrary()
     cumem_available = True
 except ModuleNotFoundError:
-    # rocm platform does not support cumem allocator
     init_module = None
     python_create_and_map = None
     python_unmap_and_release = None
     CudaRTLibrary = None
     lib_name = None
     libcudart = None
-
-# py_device, py_alignedSize, py_d_mem, py_p_memHandle
 HandleType = tuple[int, int, int, int]
-
 
 @dataclasses.dataclass
 class AllocationData:
@@ -73,35 +48,23 @@ class AllocationData:
     tag: str
     cpu_backup_tensor: Optional[torch.Tensor] = None
 
-
 def create_and_map(allocation_handle: HandleType) -> None:
     python_create_and_map(*allocation_handle)
-
 
 def unmap_and_release(allocation_handle: HandleType) -> None:
     python_unmap_and_release(*allocation_handle)
 
-
-def get_pluggable_allocator(
-    python_malloc_fn: Callable[[int],
-                               int], python_free_func: Callable[[int, int],
-                                                                None]
-) -> torch.cuda.memory.CUDAPluggableAllocator:
+def get_pluggable_allocator(python_malloc_fn: Callable[[int], int], python_free_func: Callable[[int, int], None]) -> torch.cuda.memory.CUDAPluggableAllocator:
     init_module(python_malloc_fn, python_free_func)
-    new_alloc = torch.cuda.memory.CUDAPluggableAllocator(
-        lib_name, 'my_malloc', 'my_free')
+    new_alloc = torch.cuda.memory.CUDAPluggableAllocator(lib_name, 'my_malloc', 'my_free')
     return new_alloc
 
-
 @contextmanager
-def use_memory_pool_with_allocator(
-        python_malloc_fn: Callable[[int], int],
-        python_free_func: Callable[[int, int], None]) -> None:
+def use_memory_pool_with_allocator(python_malloc_fn: Callable[[int], int], python_free_func: Callable[[int, int], None]) -> None:
     new_alloc = get_pluggable_allocator(python_malloc_fn, python_free_func)
     mem_pool = torch.cuda.memory.MemPool(new_alloc._allocator)
     with torch.cuda.memory.use_mem_pool(mem_pool):
-        yield mem_pool, new_alloc
-
+        yield (mem_pool, new_alloc)
 
 class CuMemAllocator:
     """
@@ -127,28 +90,24 @@ class CuMemAllocator:
     the global variable will be overwritten and the free callback will
     not work as expected.
     """
-    instance: "CuMemAllocator" = None
-    default_tag: str = "default"
+    instance: 'CuMemAllocator' = None
+    default_tag: str = 'default'
 
     @staticmethod
-    def get_instance() -> "CuMemAllocator":
+    def get_instance() -> 'CuMemAllocator':
         """
         CuMemAllocator is a singleton class.
         We cannot call the constructor directly.
         Call this method to get the instance.
         """
-        assert cumem_available, "cumem allocator is not available"
+        assert cumem_available, 'cumem allocator is not available'
         if CuMemAllocator.instance is None:
             CuMemAllocator.instance = CuMemAllocator()
         return CuMemAllocator.instance
 
     def __init__(self):
-        conf = os.environ.get("PYTORCH_CUDA_ALLOC_CONF", "")
-        assert "expandable_segments:True" not in conf, \
-            ("Expandable segments are not compatible with memory pool. "
-            "Please track https://github.com/pytorch/pytorch/issues/147851 "
-            "for the latest updates.")
-
+        conf = os.environ.get('PYTORCH_CUDA_ALLOC_CONF', '')
+        assert 'expandable_segments:True' not in conf, 'Expandable segments are not compatible with memory pool. Please track https://github.com/pytorch/pytorch/issues/147851 for the latest updates.'
         self.pointer_to_data: dict[int, AllocationData] = {}
         self.current_tag: str = CuMemAllocator.default_tag
         self.allocator_and_pools: dict[str, Any] = {}
@@ -158,8 +117,7 @@ class CuMemAllocator:
         Internal method to store the allocation data
         when memory is allocated in the memory pool."""
         py_d_mem = allocation_handle[2]
-        self.pointer_to_data[py_d_mem] = AllocationData(
-            allocation_handle, self.current_tag)
+        self.pointer_to_data[py_d_mem] = AllocationData(allocation_handle, self.current_tag)
         return
 
     def python_free_callback(self, ptr: int) -> HandleType:
@@ -171,10 +129,7 @@ class CuMemAllocator:
             data.cpu_backup_tensor = None
         return data.handle
 
-    def sleep(
-            self,
-            offload_tags: Optional[Union[tuple[str, ...],
-                                         str]] = None) -> None:
+    def sleep(self, offload_tags: Optional[Union[tuple[str, ...], str]]=None) -> None:
         """
         Put the allocator in sleep mode.
         All data in the memory allocation with the specified tag will be
@@ -184,32 +139,23 @@ class CuMemAllocator:
             offloaded. The rest of the memory allocation will be discarded.
         """
         if offload_tags is None:
-            # by default, allocated tensors are offloaded
-            # when the allocator sleeps
-            offload_tags = (CuMemAllocator.default_tag, )
+            offload_tags = (CuMemAllocator.default_tag,)
         elif isinstance(offload_tags, str):
-            offload_tags = (offload_tags, )
-
+            offload_tags = (offload_tags,)
         assert isinstance(offload_tags, tuple)
-
         for ptr, data in self.pointer_to_data.items():
             handle = data.handle
             if data.tag in offload_tags:
                 size_in_bytes = handle[1]
-                cpu_backup_tensor = torch.empty(
-                    size_in_bytes,
-                    dtype=torch.uint8,
-                    device='cpu',
-                    pin_memory=is_pin_memory_available())
+                cpu_backup_tensor = torch.empty(size_in_bytes, dtype=torch.uint8, device='cpu', pin_memory=is_pin_memory_available())
                 cpu_ptr = cpu_backup_tensor.data_ptr()
                 libcudart.cudaMemcpy(cpu_ptr, ptr, size_in_bytes)
                 data.cpu_backup_tensor = cpu_backup_tensor
             unmap_and_release(handle)
-
         gc.collect()
         torch.cuda.empty_cache()
 
-    def wake_up(self, tags: Optional[list[str]] = None) -> None:
+    def wake_up(self, tags: Optional[list[str]]=None) -> None:
         """
         Wake up the allocator from sleep mode.
         All data that is previously offloaded will be loaded back to GPU 
@@ -226,14 +172,13 @@ class CuMemAllocator:
                 if data.cpu_backup_tensor is not None:
                     cpu_backup_tensor = data.cpu_backup_tensor
                     if cpu_backup_tensor is not None:
-                        size_in_bytes = cpu_backup_tensor.numel(
-                        ) * cpu_backup_tensor.element_size()
+                        size_in_bytes = cpu_backup_tensor.numel() * cpu_backup_tensor.element_size()
                         cpu_ptr = cpu_backup_tensor.data_ptr()
                         libcudart.cudaMemcpy(ptr, cpu_ptr, size_in_bytes)
                         data.cpu_backup_tensor = None
 
     @contextmanager
-    def use_memory_pool(self, tag: Optional[str] = None):
+    def use_memory_pool(self, tag: Optional[str]=None):
         """
         A context manager to use the memory pool.
         All memory allocation created inside the context will be allocated
@@ -244,30 +189,12 @@ class CuMemAllocator:
         """
         if tag is None:
             tag = CuMemAllocator.default_tag
-
         assert isinstance(tag, str)
-
         old_tag = self.current_tag
         self.current_tag = tag
-        with use_memory_pool_with_allocator(self.python_malloc_callback,
-                                            self.python_free_callback) as data:
-            # start to hit another PyTorch bug in PyTorch 2.6,
-            # possibly because of gc-related issue w.r.t. the allocator and
-            # the memory pool.
-            # to avoid the issue, we keep a reference of the data.
-            # see https://github.com/pytorch/pytorch/issues/146431 .
+        with use_memory_pool_with_allocator(self.python_malloc_callback, self.python_free_callback) as data:
             self.allocator_and_pools[tag] = data
             yield
-            # PyTorch's bug, calling torch.cuda.empty_cache() will error
-            # when using pluggable allocator, see
-            # https://github.com/pytorch/pytorch/issues/145168 .
-            # if we have some memory allocated and then freed,
-            # the memory will not be released.
-            # right now it is fine, because we only use this allocator
-            # during weight loading and kv cache creation, where we only
-            # allocate memory.
-            # TODO: we need to find a way to release the memory,
-            # i.e. calling torch.cuda.empty_cache()
             self.current_tag = old_tag
 
     def get_current_usage(self) -> int:

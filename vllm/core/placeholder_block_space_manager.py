@@ -1,12 +1,7 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from typing import List, Optional, Tuple
-
 from vllm.core.interfaces import AllocStatus, BlockSpaceManager
 from vllm.sequence import Sequence, SequenceGroup
 from vllm.utils import Device
-
 
 class PlaceholderBlockSpaceManager(BlockSpaceManager):
     """A version of BlockSpaceManager for use in environments
@@ -19,55 +14,41 @@ class PlaceholderBlockSpaceManager(BlockSpaceManager):
     block management is unnecessary, such as in an embedding environment.
     """
 
-    def __init__(
-        self,
-        **kwargs,
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         pass
 
-    def can_allocate(self,
-                     seq_group: SequenceGroup,
-                     num_lookahead_slots: int = 0) -> AllocStatus:
-        # Always return OK for dummy purposes
+    def can_allocate(self, seq_group: SequenceGroup, num_lookahead_slots: int=0) -> AllocStatus:
         return AllocStatus.OK
 
     def allocate(self, seq_group: SequenceGroup) -> None:
-        # No actual allocation logic needed
         pass
 
-    def can_append_slots(self, seq_group: SequenceGroup,
-                         num_lookahead_slots: int) -> bool:
+    def can_append_slots(self, seq_group: SequenceGroup, num_lookahead_slots: int) -> bool:
         return True
 
-    def append_slots(
-        self,
-        seq: Sequence,
-        num_lookahead_slots: int,
-    ) -> List[Tuple[int, int]]:
+    def append_slots(self, seq: Sequence, num_lookahead_slots: int) -> List[Tuple[int, int]]:
         return []
 
     def fork(self, parent_seq: Sequence, child_seq: Sequence) -> None:
         pass
 
-    def can_swap_in(self, seq_group: SequenceGroup,
-                    num_lookahead_slots: int) -> AllocStatus:
+    def can_swap_in(self, seq_group: SequenceGroup, num_lookahead_slots: int) -> AllocStatus:
         return AllocStatus.OK
 
     def swap_in(self, seq_group: SequenceGroup) -> List[Tuple[int, int]]:
-        return None  # type: ignore
+        return None
 
     def can_swap_out(self, seq_group: SequenceGroup) -> bool:
         return True
 
     def swap_out(self, seq_group: SequenceGroup) -> List[Tuple[int, int]]:
-        return None  # type: ignore
+        return None
 
     def free(self, seq: Sequence) -> None:
-        # No operation on free
         return
 
     def get_block_table(self, seq: Sequence) -> List[int]:
-        return None  # type: ignore
+        return None
 
     def get_num_free_gpu_blocks(self) -> int:
         return 1
@@ -75,25 +56,19 @@ class PlaceholderBlockSpaceManager(BlockSpaceManager):
     def get_num_free_cpu_blocks(self) -> int:
         return 1
 
-    def access_all_blocks_in_seq(
-        self,
-        seq: Sequence,
-        access_time: float,
-    ) -> None:
+    def access_all_blocks_in_seq(self, seq: Sequence, access_time: float) -> None:
         pass
 
-    def get_common_computed_block_ids(self,
-                                      seq_group: List[Sequence]) -> List[int]:
+    def get_common_computed_block_ids(self, seq_group: List[Sequence]) -> List[int]:
         return []
 
-    def mark_blocks_as_computed(self, seq_group: SequenceGroup,
-                                token_chunk_size: int):
+    def mark_blocks_as_computed(self, seq_group: SequenceGroup, token_chunk_size: int):
         pass
 
     def get_prefix_cache_hit_rate(self, device: Device) -> float:
         return -1
 
-    def reset_prefix_cache(self, device: Optional[Device] = None) -> bool:
+    def reset_prefix_cache(self, device: Optional[Device]=None) -> bool:
         return True
 
     def get_num_cached_tokens(self, seq: Sequence) -> int:

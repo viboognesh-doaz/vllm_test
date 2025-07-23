@@ -1,19 +1,11 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
+from .base import MediaIO
+from PIL import Image
 from io import BytesIO
 from pathlib import Path
-
 import pybase64
 import torch
-from PIL import Image
 
-from .base import MediaIO
-
-
-def rescale_image_size(image: Image.Image,
-                       size_factor: float,
-                       transpose: int = -1) -> Image.Image:
+def rescale_image_size(image: Image.Image, size_factor: float, transpose: int=-1) -> Image.Image:
     """Rescale the dimensions of an image by a constant factor."""
     new_width = int(image.width * size_factor)
     new_height = int(image.height * size_factor)
@@ -22,37 +14,26 @@ def rescale_image_size(image: Image.Image,
         image = image.transpose(Image.Transpose(transpose))
     return image
 
-
-# TODO: Support customizable background color to fill in.
-def rgba_to_rgb(
-    image: Image.Image, background_color=(255, 255, 255)) -> Image.Image:
+def rgba_to_rgb(image: Image.Image, background_color=(255, 255, 255)) -> Image.Image:
     """Convert an RGBA image to RGB with filled background color."""
-    assert image.mode == "RGBA"
-    converted = Image.new("RGB", image.size, background_color)
-    converted.paste(image, mask=image.split()[3])  # 3 is the alpha channel
+    assert image.mode == 'RGBA'
+    converted = Image.new('RGB', image.size, background_color)
+    converted.paste(image, mask=image.split()[3])
     return converted
-
 
 def convert_image_mode(image: Image.Image, to_mode: str):
     if image.mode == to_mode:
         return image
-    elif image.mode == "RGBA" and to_mode == "RGB":
+    elif image.mode == 'RGBA' and to_mode == 'RGB':
         return rgba_to_rgb(image)
     else:
         return image.convert(to_mode)
 
-
 class ImageMediaIO(MediaIO[Image.Image]):
 
-    def __init__(self, image_mode: str = "RGB", **kwargs) -> None:
+    def __init__(self, image_mode: str='RGB', **kwargs) -> None:
         super().__init__()
-
         self.image_mode = image_mode
-        # `kwargs` contains custom arguments from
-        # --media-io-kwargs for this modality.
-        # They can be passed to the underlying
-        # media loaders (e.g. custom implementations)
-        # for flexible control.
         self.kwargs = kwargs
 
     def load_bytes(self, data: bytes) -> Image.Image:
@@ -68,21 +49,13 @@ class ImageMediaIO(MediaIO[Image.Image]):
         image.load()
         return convert_image_mode(image, self.image_mode)
 
-    def encode_base64(
-        self,
-        media: Image.Image,
-        *,
-        image_format: str = "JPEG",
-    ) -> str:
+    def encode_base64(self, media: Image.Image, *, image_format: str='JPEG') -> str:
         image = media
-
         with BytesIO() as buffer:
             image = convert_image_mode(image, self.image_mode)
             image.save(buffer, image_format)
             data = buffer.getvalue()
-
         return pybase64.b64encode(data).decode('utf-8')
-
 
 class ImageEmbeddingMediaIO(MediaIO[torch.Tensor]):
 

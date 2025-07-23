@@ -1,39 +1,26 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
+from .torch25_custom_graph_pass import Torch25CustomGraphPass as CustomGraphPass
+from contextlib import contextmanager
+from torch import fx
+from torch._inductor.custom_graph_pass import CustomGraphPass
+from typing import Any, Callable, Optional, Union
+from vllm.utils import is_torch_equal_or_newer
 import hashlib
 import inspect
 import json
-import types
-from contextlib import contextmanager
-from typing import Any, Callable, Optional, Union
-
 import torch
-from torch import fx
-
-from vllm.utils import is_torch_equal_or_newer
-
-if is_torch_equal_or_newer("2.6"):
-    from torch._inductor.custom_graph_pass import CustomGraphPass
-else:
-    # CustomGraphPass is not present in 2.5 or lower, import our version
-    from .torch25_custom_graph_pass import (  # noqa: E501
-        Torch25CustomGraphPass as CustomGraphPass)
-
+import types
+if is_torch_equal_or_newer('2.6'):
 _pass_context = None
-
 
 class PassContext:
 
     def __init__(self, runtime_shape: Optional[int]):
         self.runtime_shape = runtime_shape
 
-
 def get_pass_context() -> PassContext:
     """Get the current pass context."""
     assert _pass_context is not None
     return _pass_context
-
 
 @contextmanager
 def pass_context(runtime_shape: Optional[int]):
@@ -47,7 +34,6 @@ def pass_context(runtime_shape: Optional[int]):
         yield
     finally:
         _pass_context = prev_context
-
 
 class InductorPass(CustomGraphPass):
     """
@@ -80,7 +66,7 @@ class InductorPass(CustomGraphPass):
                 src_str = inspect.getsource(src)
             else:
                 src_str = inspect.getsource(src.__class__)
-            hasher.update(src_str.encode("utf-8"))
+            hasher.update(src_str.encode('utf-8'))
         return hasher.hexdigest()
 
     @staticmethod
@@ -89,12 +75,11 @@ class InductorPass(CustomGraphPass):
         Utility method to hash a dictionary, can alternatively be used for uuid.
         :return: A sha256 hash of the json rep of the dictionary.
         """
-        encoded = json.dumps(dict_, sort_keys=True).encode("utf-8")
+        encoded = json.dumps(dict_, sort_keys=True).encode('utf-8')
         return hashlib.sha256(encoded).hexdigest()
 
     def is_applicable_for_shape(self, shape: Optional[int]):
         return True
-
 
 class CallableInductorPass(InductorPass):
     """
@@ -102,9 +87,7 @@ class CallableInductorPass(InductorPass):
     implementation of the UUID.
     """
 
-    def __init__(self,
-                 callable: Callable[[fx.Graph], None],
-                 uuid: Optional[Any] = None):
+    def __init__(self, callable: Callable[[fx.Graph], None], uuid: Optional[Any]=None):
         self.callable = callable
         self._uuid = self.hash_source(callable) if uuid is None else uuid
 

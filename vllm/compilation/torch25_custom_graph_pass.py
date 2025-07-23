@@ -1,12 +1,8 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from abc import ABC, abstractmethod
 from typing import Any, Optional
-
 import torch
 
-
-class Torch25CustomGraphPass(ABC):  # noqa (redefinition)
+class Torch25CustomGraphPass(ABC):
     """
     This class replaces CustomGraphPass from torch==2.6 when using torch<2.6.
     It conforms to the 2.6 interface but also supports pickling, as that's what
@@ -37,6 +33,4 @@ class Torch25CustomGraphPass(ABC):  # noqa (redefinition)
         return self.uuid()
 
     def __setstate__(self, state):
-        raise ValueError("Cannot unpickle CustomGraphPass because pickling"
-                         " is used for cache key uuid. Use torch>=2.6 with"
-                         " native uuid support for custom passes.")
+        raise ValueError('Cannot unpickle CustomGraphPass because pickling is used for cache key uuid. Use torch>=2.6 with native uuid support for custom passes.')

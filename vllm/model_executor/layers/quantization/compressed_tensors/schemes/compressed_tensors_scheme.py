@@ -1,13 +1,7 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from abc import ABC, abstractmethod
 from typing import Optional
-
 import torch
-
-__all__ = ["CompressedTensorsScheme"]
-
+__all__ = ['CompressedTensorsScheme']
 
 class CompressedTensorsScheme(ABC):
     """
@@ -32,8 +26,7 @@ class CompressedTensorsScheme(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def apply_weights(self, layer: torch.nn.Module, x: torch.Tensor,
-                      bias: Optional[torch.Tensor]):
+    def apply_weights(self, layer: torch.nn.Module, x: torch.Tensor, bias: Optional[torch.Tensor]):
         """
         Run the forward pass for the particular scheme. This is where 
         scheme-specific dequant/quant steps/kernels should be applied.

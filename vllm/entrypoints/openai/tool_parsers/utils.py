@@ -1,13 +1,8 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-import json
 from json import JSONDecodeError, JSONDecoder
-from typing import Any
-
-import partial_json_parser
 from partial_json_parser.core.options import Allow
-
+from typing import Any
+import json
+import partial_json_parser
 
 def find_common_prefix(s1: str, s2: str) -> str:
     """
@@ -31,7 +26,6 @@ def find_common_prefix(s1: str, s2: str) -> str:
             break
     return prefix
 
-
 def find_common_suffix(s1: str, s2: str) -> str:
     """
     Finds a common suffix shared between two strings, if there is one. Order of
@@ -43,12 +37,11 @@ def find_common_suffix(s1: str, s2: str) -> str:
     suffix = ''
     min_length = min(len(s1), len(s2))
     for i in range(1, min_length + 1):
-        if s1[-i] == s2[-i] and not s1[-i].isalnum():
+        if s1[-i] == s2[-i] and (not s1[-i].isalnum()):
             suffix = s1[-i] + suffix
         else:
             break
     return suffix
-
 
 def extract_intermediate_diff(curr: str, old: str) -> str:
     """
@@ -69,19 +62,14 @@ def extract_intermediate_diff(curr: str, old: str) -> str:
 
     """
     suffix = find_common_suffix(curr, old)
-
     old = old[::-1].replace(suffix[::-1], '', 1)[::-1]
     prefix = find_common_prefix(curr, old)
     diff = curr
     if len(suffix):
         diff = diff[::-1].replace(suffix[::-1], '', 1)[::-1]
-
     if len(prefix):
-        # replace the prefix only once in case it's mirrored
         diff = diff.replace(prefix, '', 1)
-
     return diff
-
 
 def find_all_indices(string: str, substring: str) -> list[int]:
     """
@@ -97,18 +85,14 @@ def find_all_indices(string: str, substring: str) -> list[int]:
         indices.append(index)
     return indices
 
-
-# partial_json_parser doesn't support extra data and
-# JSONDecoder.raw_decode doesn't support partial JSON
 def partial_json_loads(input_str: str, flags: Allow) -> tuple[Any, int]:
     try:
         return (partial_json_parser.loads(input_str, flags), len(input_str))
     except JSONDecodeError as e:
-        if "Extra data" in e.msg:
+        if 'Extra data' in e.msg:
             dec = JSONDecoder()
             return dec.raw_decode(input_str)
         raise
-
 
 def is_complete_json(input_str: str) -> bool:
     try:
@@ -116,7 +100,6 @@ def is_complete_json(input_str: str) -> bool:
         return True
     except JSONDecodeError:
         return False
-
 
 def consume_space(i: int, s: str) -> int:
     while i < len(s) and s[i].isspace():

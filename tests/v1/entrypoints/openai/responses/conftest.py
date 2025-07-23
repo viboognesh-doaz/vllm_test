@@ -1,30 +1,16 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+from tests.utils import RemoteOpenAIServer
 import pytest
 import pytest_asyncio
+MODEL_NAME = 'Qwen/Qwen3-0.6B'
 
-from tests.utils import RemoteOpenAIServer
-
-# Use a small reasoning model to test the responses API.
-MODEL_NAME = "Qwen/Qwen3-0.6B"
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def default_server_args():
-    return [
-        "--max-model-len",
-        "8192",
-        "--enforce-eager",  # For faster startup.
-        "--reasoning-parser",
-        "deepseek_r1",
-    ]
+    return ['--max-model-len', '8192', '--enforce-eager', '--reasoning-parser', 'deepseek_r1']
 
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def server(default_server_args):
     with RemoteOpenAIServer(MODEL_NAME, default_server_args) as remote_server:
         yield remote_server
-
 
 @pytest_asyncio.fixture
 async def client(server):

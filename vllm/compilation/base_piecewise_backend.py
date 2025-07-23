@@ -1,13 +1,7 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from typing import Any, Callable, Protocol
-
-import torch.fx as fx
-
 from vllm.compilation.backends import VllmBackend
 from vllm.config import VllmConfig
-
+import torch.fx as fx
 
 class AbstractPiecewiseBackend(Protocol):
     """
@@ -15,11 +9,7 @@ class AbstractPiecewiseBackend(Protocol):
     piecewise static graph.
     """
 
-    def __init__(self, graph: fx.GraphModule, vllm_config: VllmConfig,
-                 graph_pool: Any, piecewise_compile_index: int,
-                 total_piecewise_compiles: int, sym_shape_indices: list[int],
-                 compiled_graph_for_general_shape: Callable,
-                 vllm_backend: VllmBackend, **kwargs):
+    def __init__(self, graph: fx.GraphModule, vllm_config: VllmConfig, graph_pool: Any, piecewise_compile_index: int, total_piecewise_compiles: int, sym_shape_indices: list[int], compiled_graph_for_general_shape: Callable, vllm_backend: VllmBackend, **kwargs):
         """
         Initializes the PiecewiseBackend class with compilation and 
         execution-related configurations.

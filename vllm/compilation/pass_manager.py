@@ -1,11 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-from torch import fx as fx
-
-from vllm.config import VllmConfig
-from vllm.logger import init_logger
-
 from .activation_quant_fusion import ActivationQuantFusionPass
 from .collective_fusion import AllReduceFusionPass, AsyncTPPass
 from .fix_functionalization import FixFunctionalizationPass
@@ -15,9 +7,10 @@ from .inductor_pass import CustomGraphPass, InductorPass, get_pass_context
 from .noop_elimination import NoOpEliminationPass
 from .sequence_parallelism import SequenceParallelismPass
 from .vllm_inductor_pass import VllmInductorPass
-
+from torch import fx as fx
+from vllm.config import VllmConfig
+from vllm.logger import init_logger
 logger = init_logger(__name__)
-
 
 class PostGradPassManager(CustomGraphPass):
     """
@@ -42,24 +35,19 @@ class PostGradPassManager(CustomGraphPass):
         for pass_ in self.passes:
             if pass_.is_applicable_for_shape(shape):
                 pass_(graph)
-
-        # always run fix_functionalization last
         self.fix_functionalization(graph)
 
     def configure(self, config: VllmConfig):
         self.pass_config = config.compilation_config.pass_config
         if self.pass_config.enable_noop:
             self.passes += [NoOpEliminationPass(config)]
-
         if self.pass_config.enable_sequence_parallelism:
             self.passes += [SequenceParallelismPass(config)]
             if self.pass_config.enable_async_tp:
                 self.passes += [AsyncTPPass(config)]
-
         if self.pass_config.enable_fusion:
             self.passes += [FusionPass.instance(config)]
             self.passes += [ActivationQuantFusionPass(config)]
-
         if self.pass_config.enable_attn_fusion:
             self.passes += [AttnFusionPass(config)]
         if self.pass_config.enable_fi_allreduce_fusion:
@@ -76,8 +64,8 @@ class PostGradPassManager(CustomGraphPass):
         affects compilation caching. Its uuid depends on the UUIDs of all
         dependent passes and the pass config. See InductorPass for more info.
         """
-        state = {"pass_config": self.pass_config.uuid(), "passes": []}
+        state = {'pass_config': self.pass_config.uuid(), 'passes': []}
         for pass_ in self.passes:
-            state["passes"].append(pass_.uuid())
-        state["passes"].append(self.fix_functionalization.uuid())
+            state['passes'].append(pass_.uuid())
+        state['passes'].append(self.fix_functionalization.uuid())
         return InductorPass.hash_dict(state)

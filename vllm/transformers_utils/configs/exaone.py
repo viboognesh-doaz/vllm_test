@@ -1,33 +1,11 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-# Copied from
-# https://huggingface.co/LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct/blob/main/configuration_exaone.py
-# Copyright 2021 The LG AI Research EXAONE Lab. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Exaone model configuration"""
-
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
-
+'Exaone model configuration'
 logger = logging.get_logger(__name__)
-
 EXAONE_PRETRAINED_CONFIG_ARCHIVE_MAP: dict[str, str] = {}
 
-
 class ExaoneConfig(PretrainedConfig):
-    r"""
+    """
     This is the configuration class to store the configuration of a :class:
     `~transformers.ExaoneModel`. It is used to instantiate a GPT Lingvo model
     according to the specified arguments, defining the model architecture.
@@ -113,40 +91,12 @@ class ExaoneConfig(PretrainedConfig):
             >>> # Accessing the model configuration
             >>> configuration = model.config
     """
+    model_type = 'exaone'
+    keys_to_ignore_at_inference = ['past_key_values']
+    attribute_map = {'num_hidden_layers': 'num_layers'}
 
-    model_type = "exaone"
-    keys_to_ignore_at_inference = ["past_key_values"]
-    attribute_map = {"num_hidden_layers": "num_layers"}
-
-    def __init__(
-        self,
-        vocab_size=102400,
-        max_position_embeddings=2048,
-        hidden_size=2048,
-        num_layers=32,
-        num_attention_heads=32,
-        num_key_value_heads=None,
-        intermediate_size=None,
-        activation_function="silu",
-        rotary_pct=0.25,
-        resid_dropout=0.0,
-        embed_dropout=0.0,
-        attention_dropout=0.0,
-        layer_norm_epsilon=1e-6,
-        initializer_range=0.02,
-        use_cache=True,
-        bos_token_id=0,
-        eos_token_id=2,
-        tie_word_embeddings=True,
-        **kwargs,
-    ):
-        super().__init__(
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            tie_word_embeddings=tie_word_embeddings,
-            **kwargs,
-        )
-
+    def __init__(self, vocab_size=102400, max_position_embeddings=2048, hidden_size=2048, num_layers=32, num_attention_heads=32, num_key_value_heads=None, intermediate_size=None, activation_function='silu', rotary_pct=0.25, resid_dropout=0.0, embed_dropout=0.0, attention_dropout=0.0, layer_norm_epsilon=1e-06, initializer_range=0.02, use_cache=True, bos_token_id=0, eos_token_id=2, tie_word_embeddings=True, **kwargs):
+        super().__init__(bos_token_id=bos_token_id, eos_token_id=eos_token_id, tie_word_embeddings=tie_word_embeddings, **kwargs)
         self.vocab_size = vocab_size
         self.max_position_embeddings = max_position_embeddings
         self.hidden_size = hidden_size
@@ -168,23 +118,20 @@ class ExaoneConfig(PretrainedConfig):
         self.initializer_range = initializer_range
         self.use_cache = use_cache
         self.rotary_pct = rotary_pct
-
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
-
-        self.use_logit_cap = kwargs.pop("use_logit_cap", False)
-        self.ln_no_scale = kwargs.pop("ln_no_scale", False)
-        self.use_gated = kwargs.pop("use_gated", False)
-        self.use_emb_norm = kwargs.pop("use_emb_norm", False)
-        self.use_rotary_pos = kwargs.pop("use_rotary_pos", False)
-        self.rotary_type = kwargs.pop("rotary_type", None)
-        self.scaling_factor = kwargs.pop("scaling_factor", 1)
-        self.use_absolute_pos = kwargs.pop("use_absolute_pos", True)
-        self.use_extra_logit = kwargs.pop("use_extra_logit", True)
-        self.rotary_expand_length = kwargs.pop("rotary_expand_length", None)
-        self.rotary_base = kwargs.pop("rotary_base", 10000.0)
-        self.use_qkv_fuse = kwargs.pop("use_qkv_fuse", False)
-        self.rescale_before_lm_head = kwargs.pop("rescale_before_lm_head",
-                                                 (rotary_pct == 0.25))
+        self.use_logit_cap = kwargs.pop('use_logit_cap', False)
+        self.ln_no_scale = kwargs.pop('ln_no_scale', False)
+        self.use_gated = kwargs.pop('use_gated', False)
+        self.use_emb_norm = kwargs.pop('use_emb_norm', False)
+        self.use_rotary_pos = kwargs.pop('use_rotary_pos', False)
+        self.rotary_type = kwargs.pop('rotary_type', None)
+        self.scaling_factor = kwargs.pop('scaling_factor', 1)
+        self.use_absolute_pos = kwargs.pop('use_absolute_pos', True)
+        self.use_extra_logit = kwargs.pop('use_extra_logit', True)
+        self.rotary_expand_length = kwargs.pop('rotary_expand_length', None)
+        self.rotary_base = kwargs.pop('rotary_base', 10000.0)
+        self.use_qkv_fuse = kwargs.pop('use_qkv_fuse', False)
+        self.rescale_before_lm_head = kwargs.pop('rescale_before_lm_head', rotary_pct == 0.25)
         if self.use_rotary_pos:
             self.use_absolute_pos = False

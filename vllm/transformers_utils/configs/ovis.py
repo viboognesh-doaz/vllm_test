@@ -1,14 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-# yapf: disable
-# ruff: noqa: E501
-# copied from https://huggingface.co/AIDC-AI/Ovis2-1B/blob/main/configuration_aimv2.py
-# and https://huggingface.co/AIDC-AI/Ovis2-1B/blob/main/configuration_ovis.py
-from typing import Any, Optional, Union
-
 from transformers import AutoConfig, PretrainedConfig
-
+from typing import Any, Optional, Union
 
 class AIMv2Config(PretrainedConfig):
     """This is the configuration class to store the configuration of an [`AIMv2Model`].
@@ -32,25 +23,9 @@ class AIMv2Config(PretrainedConfig):
         use_bias: Whether to add a bias in the feed-forward and projection layers.
         kwargs: Keyword arguments for the [`PretrainedConfig`].
     """
+    model_type: str = 'aimv2'
 
-    model_type: str = "aimv2"
-
-    def __init__(
-        self,
-        hidden_size: int = 1024,
-        intermediate_size: int = 2816,
-        num_hidden_layers: int = 24,
-        num_attention_heads: int = 8,
-        num_channels: int = 3,
-        image_size: int = 224,
-        patch_size: int = 14,
-        rms_norm_eps: float = 1e-5,
-        attention_dropout: float = 0.0,
-        projection_dropout: float = 0.0,
-        qkv_bias: bool = False,
-        use_bias: bool = False,
-        **kwargs: Any,
-    ):
+    def __init__(self, hidden_size: int=1024, intermediate_size: int=2816, num_hidden_layers: int=24, num_attention_heads: int=8, num_channels: int=3, image_size: int=224, patch_size: int=14, rms_norm_eps: float=1e-05, attention_dropout: float=0.0, projection_dropout: float=0.0, qkv_bias: bool=False, use_bias: bool=False, **kwargs: Any):
         super().__init__(**kwargs)
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
@@ -61,34 +36,18 @@ class AIMv2Config(PretrainedConfig):
         self.image_size = image_size
         self.attention_dropout = attention_dropout
         self.rms_norm_eps = rms_norm_eps
-
         self.projection_dropout = projection_dropout
         self.qkv_bias = qkv_bias
         self.use_bias = use_bias
-
-
 IGNORE_ID = -100
 IMAGE_TOKEN_ID = -200
-IMAGE_TOKEN = "<image>"
+IMAGE_TOKEN = '<image>'
 IMAGE_ATOM_ID = -300
 IMAGE_INDICATOR_IDS = [-301, -302, -303, -304, -305]
 
-
-# ----------------------------------------------------------------------
-#                     Visual Tokenizer Configuration
-# ----------------------------------------------------------------------
 class BaseVisualTokenizerConfig(PretrainedConfig):
 
-    def __init__(self,
-                 vocab_size=16384,
-                 tokenize_function="softmax",
-                 tau=1.0,
-                 depths=None,
-                 drop_cls_token=False,
-                 backbone_config: Optional[Union[PretrainedConfig,
-                                                 dict]] = None,
-                 hidden_stride: int = 1,
-                 **kwargs):
+    def __init__(self, vocab_size=16384, tokenize_function='softmax', tau=1.0, depths=None, drop_cls_token=False, backbone_config: Optional[Union[PretrainedConfig, dict]]=None, hidden_stride: int=1, **kwargs):
         super().__init__(**kwargs)
         self.vocab_size = vocab_size
         self.tokenize_function = tokenize_function
@@ -99,11 +58,10 @@ class BaseVisualTokenizerConfig(PretrainedConfig):
         self.backbone_kwargs = dict[str, Any]()
         self.drop_cls_token = drop_cls_token
         if backbone_config is not None:
-            assert isinstance(backbone_config, (PretrainedConfig, dict)), \
-                f"expect `backbone_config` to be instance of PretrainedConfig or dict, but got {type(backbone_config)} type"
+            assert isinstance(backbone_config, (PretrainedConfig, dict)), f'expect `backbone_config` to be instance of PretrainedConfig or dict, but got {type(backbone_config)} type'
             if not isinstance(backbone_config, PretrainedConfig):
                 model_type = backbone_config['model_type']
-                if model_type != "aimv2":
+                if model_type != 'aimv2':
                     backbone_config.pop('model_type')
                     backbone_config = AutoConfig.for_model(model_type, **backbone_config)
                 else:
@@ -111,9 +69,8 @@ class BaseVisualTokenizerConfig(PretrainedConfig):
         self.backbone_config = backbone_config
         self.hidden_stride = hidden_stride
 
-
 class Aimv2VisualTokenizerConfig(BaseVisualTokenizerConfig):
-    model_type = "aimv2_visual_tokenizer"
+    model_type = 'aimv2_visual_tokenizer'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -122,10 +79,9 @@ class Aimv2VisualTokenizerConfig(BaseVisualTokenizerConfig):
         if self.depths:
             assert len(self.depths) == 1
             self.backbone_kwargs['num_hidden_layers'] = self.depths[0]
-
 
 class SiglipVisualTokenizerConfig(BaseVisualTokenizerConfig):
-    model_type = "siglip_visual_tokenizer"
+    model_type = 'siglip_visual_tokenizer'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -134,48 +90,27 @@ class SiglipVisualTokenizerConfig(BaseVisualTokenizerConfig):
         if self.depths:
             assert len(self.depths) == 1
             self.backbone_kwargs['num_hidden_layers'] = self.depths[0]
+AutoConfig.register('siglip_visual_tokenizer', SiglipVisualTokenizerConfig)
+AutoConfig.register('aimv2_visual_tokenizer', Aimv2VisualTokenizerConfig)
 
-
-AutoConfig.register("siglip_visual_tokenizer", SiglipVisualTokenizerConfig)
-AutoConfig.register("aimv2_visual_tokenizer", Aimv2VisualTokenizerConfig)
-
-
-# ----------------------------------------------------------------------
-#                           Ovis Configuration
-# ----------------------------------------------------------------------
 class OvisConfig(PretrainedConfig):
-    model_type = "ovis"
+    model_type = 'ovis'
 
-    def __init__(self,
-                 llm_config: Optional[Union[PretrainedConfig, dict]] = None,
-                 visual_tokenizer_config: Optional[Union[PretrainedConfig,
-                                                         dict]] = None,
-                 multimodal_max_length=8192,
-                 hidden_size=None,
-                 conversation_formatter_class=None,
-                 llm_attn_implementation=None,
-                 disable_tie_weight=False,
-                 **kwargs):
+    def __init__(self, llm_config: Optional[Union[PretrainedConfig, dict]]=None, visual_tokenizer_config: Optional[Union[PretrainedConfig, dict]]=None, multimodal_max_length=8192, hidden_size=None, conversation_formatter_class=None, llm_attn_implementation=None, disable_tie_weight=False, **kwargs):
         super().__init__(**kwargs)
         if llm_config is not None:
-            assert isinstance(llm_config, (PretrainedConfig, dict)), \
-                f"expect `llm_config` to be instance of PretrainedConfig or dict, but got {type(llm_config)} type"
+            assert isinstance(llm_config, (PretrainedConfig, dict)), f'expect `llm_config` to be instance of PretrainedConfig or dict, but got {type(llm_config)} type'
             if not isinstance(llm_config, PretrainedConfig):
                 model_type = llm_config['model_type']
                 llm_config.pop('model_type')
                 llm_config = AutoConfig.for_model(model_type, **llm_config)
-
-        # map llm_config to text_config
         self.text_config = llm_config
         if visual_tokenizer_config is not None:
-            assert isinstance(visual_tokenizer_config, (PretrainedConfig, dict)), \
-                f"expect `visual_tokenizer_config` to be instance of PretrainedConfig or dict, but got {type(visual_tokenizer_config)} type"
+            assert isinstance(visual_tokenizer_config, (PretrainedConfig, dict)), f'expect `visual_tokenizer_config` to be instance of PretrainedConfig or dict, but got {type(visual_tokenizer_config)} type'
             if not isinstance(visual_tokenizer_config, PretrainedConfig):
                 model_type = visual_tokenizer_config['model_type']
                 visual_tokenizer_config.pop('model_type')
-                visual_tokenizer_config = AutoConfig.for_model(
-                    model_type, **visual_tokenizer_config)
-
+                visual_tokenizer_config = AutoConfig.for_model(model_type, **visual_tokenizer_config)
         self.visual_tokenizer_config = visual_tokenizer_config
         self.multimodal_max_length = multimodal_max_length
         self.hidden_size = hidden_size

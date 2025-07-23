@@ -1,6 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from vllm.transformers_utils.configs.chatglm import ChatGLMConfig
 from vllm.transformers_utils.configs.cohere2 import Cohere2Config
 from vllm.transformers_utils.configs.dbrx import DbrxConfig
@@ -8,9 +5,6 @@ from vllm.transformers_utils.configs.deepseek_vl2 import DeepseekVLV2Config
 from vllm.transformers_utils.configs.eagle import EAGLEConfig
 from vllm.transformers_utils.configs.exaone import ExaoneConfig
 from vllm.transformers_utils.configs.exaone4 import Exaone4Config
-# RWConfig is for the original tiiuae/falcon-40b(-instruct) and
-# tiiuae/falcon-7b(-instruct) models. Newer Falcon models will use the
-# `FalconConfig` class from the official HuggingFace transformers library.
 from vllm.transformers_utils.configs.falcon import RWConfig
 from vllm.transformers_utils.configs.jais import JAISConfig
 from vllm.transformers_utils.configs.kimi_vl import KimiVLConfig
@@ -29,31 +23,4 @@ from vllm.transformers_utils.configs.skyworkr1v import SkyworkR1VChatConfig
 from vllm.transformers_utils.configs.solar import SolarConfig
 from vllm.transformers_utils.configs.telechat2 import Telechat2Config
 from vllm.transformers_utils.configs.ultravox import UltravoxConfig
-
-__all__ = [
-    "ChatGLMConfig",
-    "Cohere2Config",
-    "DbrxConfig",
-    "DeepseekVLV2Config",
-    "MPTConfig",
-    "RWConfig",
-    "JAISConfig",
-    "MedusaConfig",
-    "EAGLEConfig",
-    "ExaoneConfig",
-    "Exaone4Config",
-    "MiniMaxText01Config",
-    "MiniMaxVL01Config",
-    "MllamaConfig",
-    "MLPSpeculatorConfig",
-    "MoonViTConfig",
-    "KimiVLConfig",
-    "NemotronConfig",
-    "NemotronHConfig",
-    "NVLM_D_Config",
-    "OvisConfig",
-    "SkyworkR1VChatConfig",
-    "SolarConfig",
-    "Telechat2Config",
-    "UltravoxConfig",
-]
+__all__ = ['ChatGLMConfig', 'Cohere2Config', 'DbrxConfig', 'DeepseekVLV2Config', 'MPTConfig', 'RWConfig', 'JAISConfig', 'MedusaConfig', 'EAGLEConfig', 'ExaoneConfig', 'Exaone4Config', 'MiniMaxText01Config', 'MiniMaxVL01Config', 'MllamaConfig', 'MLPSpeculatorConfig', 'MoonViTConfig', 'KimiVLConfig', 'NemotronConfig', 'NemotronHConfig', 'NVLM_D_Config', 'OvisConfig', 'SkyworkR1VChatConfig', 'SolarConfig', 'Telechat2Config', 'UltravoxConfig']

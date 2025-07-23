@@ -1,16 +1,10 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from abc import ABC, abstractmethod
 from collections.abc import Set
 from dataclasses import dataclass, field
 from typing import Optional
-
 from vllm.logger import init_logger
 from vllm.lora.request import LoRARequest
-
 logger = init_logger(__name__)
-
 
 class LoRAResolver(ABC):
     """Base class for LoRA adapter resolvers.
@@ -22,8 +16,7 @@ class LoRAResolver(ABC):
     """
 
     @abstractmethod
-    async def resolve_lora(self, base_model_name: str,
-                           lora_name: str) -> Optional[LoRARequest]:
+    async def resolve_lora(self, base_model_name: str, lora_name: str) -> Optional[LoRARequest]:
         """Abstract method to resolve and fetch a LoRA model adapter.
 
         Implements logic to locate and download LoRA adapter based on the name.
@@ -39,7 +32,6 @@ class LoRAResolver(ABC):
         """
         pass
 
-
 @dataclass
 class _LoRAResolverRegistry:
     resolvers: dict[str, LoRAResolver] = field(default_factory=dict)
@@ -48,22 +40,14 @@ class _LoRAResolverRegistry:
         """Get all registered resolver names."""
         return self.resolvers.keys()
 
-    def register_resolver(
-        self,
-        resolver_name: str,
-        resolver: LoRAResolver,
-    ) -> None:
+    def register_resolver(self, resolver_name: str, resolver: LoRAResolver) -> None:
         """Register a LoRA resolver.
         Args:
             resolver_name: Name to register the resolver under.
             resolver: The LoRA resolver instance to register.
         """
         if resolver_name in self.resolvers:
-            logger.warning(
-                "LoRA resolver %s is already registered, and will be "
-                "overwritten by the new resolver instance %s.", resolver_name,
-                resolver)
-
+            logger.warning('LoRA resolver %s is already registered, and will be overwritten by the new resolver instance %s.', resolver_name, resolver)
         self.resolvers[resolver_name] = resolver
 
     def get_resolver(self, resolver_name: str) -> LoRAResolver:
@@ -76,10 +60,6 @@ class _LoRAResolverRegistry:
             KeyError: If the resolver is not found in the registry.
         """
         if resolver_name not in self.resolvers:
-            raise KeyError(
-                f"LoRA resolver '{resolver_name}' not found. "
-                f"Available resolvers: {list(self.resolvers.keys())}")
+            raise KeyError(f"LoRA resolver '{resolver_name}' not found. Available resolvers: {list(self.resolvers.keys())}")
         return self.resolvers[resolver_name]
-
-
 LoRAResolverRegistry = _LoRAResolverRegistry()

@@ -1,36 +1,24 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-from typing import TYPE_CHECKING, Any, Optional
-
-import torch
 from lmcache.integration.vllm.vllm_v1_adapter import LMCacheConnectorV1Impl
-
+from typing import TYPE_CHECKING, Any, Optional
+from vllm.attention.backends.abstract import AttentionMetadata
 from vllm.config import VllmConfig
-from vllm.distributed.kv_transfer.kv_connector.v1.base import (
-    KVConnectorBase_V1, KVConnectorMetadata, KVConnectorRole)
+from vllm.distributed.kv_transfer.kv_connector.v1.base import KVConnectorBase_V1, KVConnectorMetadata, KVConnectorRole
+from vllm.forward_context import ForwardContext
 from vllm.logger import init_logger
+from vllm.v1.core.kv_cache_manager import KVCacheBlocks
 from vllm.v1.core.sched.output import SchedulerOutput
-
+from vllm.v1.request import Request
+import torch
 if TYPE_CHECKING:
-    from vllm.attention.backends.abstract import AttentionMetadata
-    from vllm.forward_context import ForwardContext
-    from vllm.v1.core.kv_cache_manager import KVCacheBlocks
-    from vllm.v1.request import Request
-
 logger = init_logger(__name__)
-
 
 class LMCacheConnectorV1(KVConnectorBase_V1):
 
-    def __init__(self, vllm_config: "VllmConfig", role: KVConnectorRole):
+    def __init__(self, vllm_config: 'VllmConfig', role: KVConnectorRole):
         super().__init__(vllm_config=vllm_config, role=role)
         self._lmcache_engine = LMCacheConnectorV1Impl(vllm_config, role, self)
 
-    # ==============================
-    # Worker-side methods
-    # ==============================
-    def start_load_kv(self, forward_context: "ForwardContext",
-                      **kwargs) -> None:
+    def start_load_kv(self, forward_context: 'ForwardContext', **kwargs) -> None:
         """
         Start loading the KV cache from the connector to vLLM's paged
         KV buffer. This is called from the forward context before the
@@ -60,8 +48,7 @@ class LMCacheConnectorV1(KVConnectorBase_V1):
         """
         self._lmcache_engine.wait_for_layer_load(layer_name)
 
-    def save_kv_layer(self, layer_name: str, kv_layer: torch.Tensor,
-                      attn_metadata: "AttentionMetadata", **kwargs) -> None:
+    def save_kv_layer(self, layer_name: str, kv_layer: torch.Tensor, attn_metadata: 'AttentionMetadata', **kwargs) -> None:
         """
         Start saving the a layer of KV cache from vLLM's paged buffer 
         to the connector. This is called from within attention layer to
@@ -74,8 +61,7 @@ class LMCacheConnectorV1(KVConnectorBase_V1):
             attn_metadata (AttentionMetadata): the attention metadata.
             **kwargs: additional arguments for the save operation.
         """
-        self._lmcache_engine.save_kv_layer(layer_name, kv_layer, attn_metadata,
-                                           **kwargs)
+        self._lmcache_engine.save_kv_layer(layer_name, kv_layer, attn_metadata, **kwargs)
 
     def wait_for_save(self):
         """
@@ -87,9 +73,7 @@ class LMCacheConnectorV1(KVConnectorBase_V1):
         """
         self._lmcache_engine.wait_for_save()
 
-    def get_finished(
-        self, finished_req_ids: set[str]
-    ) -> tuple[Optional[set[str]], Optional[set[str]]]:
+    def get_finished(self, finished_req_ids: set[str]) -> tuple[Optional[set[str]], Optional[set[str]]]:
         """
         Notifies worker-side connector ids of requests that have
         finished generating tokens.
@@ -103,14 +87,7 @@ class LMCacheConnectorV1(KVConnectorBase_V1):
         """
         return self._lmcache_engine.get_finished(finished_req_ids)
 
-    # ==============================
-    # Scheduler-side methods
-    # ==============================
-    def get_num_new_matched_tokens(
-        self,
-        request: "Request",
-        num_computed_tokens: int,
-    ) -> tuple[int, bool]:
+    def get_num_new_matched_tokens(self, request: 'Request', num_computed_tokens: int) -> tuple[int, bool]:
         """
         Get number of new tokens that can be loaded from the
         external KV cache beyond the num_computed_tokens.
@@ -124,20 +101,15 @@ class LMCacheConnectorV1(KVConnectorBase_V1):
             the number of tokens that can be loaded from the 
             external KV cache beyond what is already computed.
         """
-        return self._lmcache_engine.get_num_new_matched_tokens(
-            request, num_computed_tokens), False
+        return (self._lmcache_engine.get_num_new_matched_tokens(request, num_computed_tokens), False)
 
-    def update_state_after_alloc(self, request: "Request",
-                                 blocks: "KVCacheBlocks",
-                                 num_external_tokens: int):
+    def update_state_after_alloc(self, request: 'Request', blocks: 'KVCacheBlocks', num_external_tokens: int):
         """
         Update KVConnector state after block allocation.
         """
-        self._lmcache_engine.update_state_after_alloc(request,
-                                                      num_external_tokens)
+        self._lmcache_engine.update_state_after_alloc(request, num_external_tokens)
 
-    def build_connector_meta(
-            self, scheduler_output: SchedulerOutput) -> KVConnectorMetadata:
+    def build_connector_meta(self, scheduler_output: SchedulerOutput) -> KVConnectorMetadata:
         """
         Build the connector metadata for this step.
 
@@ -149,11 +121,7 @@ class LMCacheConnectorV1(KVConnectorBase_V1):
         """
         return self._lmcache_engine.build_connector_meta(scheduler_output)
 
-    def request_finished(
-        self,
-        request: "Request",
-        block_ids: list[int],
-    ) -> tuple[bool, Optional[dict[str, Any]]]:
+    def request_finished(self, request: 'Request', block_ids: list[int]) -> tuple[bool, Optional[dict[str, Any]]]:
         """
         Called when a request has finished, before its blocks are freed.
 

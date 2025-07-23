@@ -1,76 +1,33 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""
-KVConnectorBase_V1 Class for Distributed KV Cache & Hidden State
-communication in vLLM v1
-
-The class provides the following primitives:
-    Scheduler-side: runs in the scheduler, binds metadata, which
-    is used by the worker-side to load/save KV cache.
-        get_num_new_matched_tokens() - get number of new tokens 
-            that exist in the remote KV cache. Might be called multiple
-            times for a given request and should be side-effect free.
-        update_state_after_alloc() - update KVConnector state after
-            temporary buffer alloc by the CacheManager.
-        request_finished() - called when a request is finished, with
-            the computed kv cache blocks for the request.
-            Returns whether KV cache should be freed now or will be
-            freed asynchronously and optionally returns KV transfer
-            params.
-
-    Worker-side: runs in each worker, loads/saves KV cache to/from
-    the Connector based on the metadata.
-        start_load_kv() - starts loading all KVs (maybe async)
-        wait_for_layer_load() - blocks until layer i load is done
-
-        save_kv_layer() - starts saving KV for layer i (maybe async)
-        wait_for_save() - blocks until all saves are done
-
-        get_finished() - called with ids of finished requests, returns
-            ids of requests that have completed async sending/recving.
-"""
-
-import enum
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Optional
-
-import torch
-
+from vllm.attention.backends.abstract import AttentionMetadata
+from vllm.config import VllmConfig
+from vllm.forward_context import ForwardContext
 from vllm.logger import init_logger
+from vllm.v1.core.kv_cache_manager import KVCacheBlocks
 from vllm.v1.core.sched.output import SchedulerOutput
-
+from vllm.v1.request import Request
+import enum
+import torch
+'\nKVConnectorBase_V1 Class for Distributed KV Cache & Hidden State\ncommunication in vLLM v1\n\nThe class provides the following primitives:\n    Scheduler-side: runs in the scheduler, binds metadata, which\n    is used by the worker-side to load/save KV cache.\n        get_num_new_matched_tokens() - get number of new tokens \n            that exist in the remote KV cache. Might be called multiple\n            times for a given request and should be side-effect free.\n        update_state_after_alloc() - update KVConnector state after\n            temporary buffer alloc by the CacheManager.\n        request_finished() - called when a request is finished, with\n            the computed kv cache blocks for the request.\n            Returns whether KV cache should be freed now or will be\n            freed asynchronously and optionally returns KV transfer\n            params.\n\n    Worker-side: runs in each worker, loads/saves KV cache to/from\n    the Connector based on the metadata.\n        start_load_kv() - starts loading all KVs (maybe async)\n        wait_for_layer_load() - blocks until layer i load is done\n\n        save_kv_layer() - starts saving KV for layer i (maybe async)\n        wait_for_save() - blocks until all saves are done\n\n        get_finished() - called with ids of finished requests, returns\n            ids of requests that have completed async sending/recving.\n'
 if TYPE_CHECKING:
-    from vllm.attention.backends.abstract import AttentionMetadata
-    from vllm.config import VllmConfig
-    from vllm.forward_context import ForwardContext
-    from vllm.v1.core.kv_cache_manager import KVCacheBlocks
-    from vllm.v1.request import Request
-
 logger = init_logger(__name__)
 
-
 class KVConnectorRole(enum.Enum):
-    # Connector running in the scheduler process
     SCHEDULER = 0
-
-    # Connector running in the worker process
     WORKER = 1
 
-
-class KVConnectorMetadata(ABC):  # noqa: B024
+class KVConnectorMetadata(ABC):
     """
     Abstract Metadata used to communicate between the
     Scheduler KVConnector and Worker KVConnector.
     """
     pass
 
-
 class KVConnectorBase_V1(ABC):
 
-    def __init__(self, vllm_config: "VllmConfig", role: KVConnectorRole):
-        logger.warning(
-            "Initializing KVConnectorBase_V1. This API is experimental and "
-            "subject to change in the future as we iterate the design.")
+    def __init__(self, vllm_config: 'VllmConfig', role: KVConnectorRole):
+        logger.warning('Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.')
         self._connector_metadata: Optional[KVConnectorMetadata] = None
         self._vllm_config = vllm_config
         self._role = role
@@ -79,12 +36,7 @@ class KVConnectorBase_V1(ABC):
     def role(self) -> KVConnectorRole:
         return self._role
 
-    # ==============================
-    # Worker-side methods
-    # ==============================
-
-    def bind_connector_metadata(
-            self, connector_metadata: KVConnectorMetadata) -> None:
+    def bind_connector_metadata(self, connector_metadata: KVConnectorMetadata) -> None:
         """Set the connector metadata from the scheduler.
 
         This function should be called by the model runner every time 
@@ -112,8 +64,6 @@ class KVConnectorBase_V1(ABC):
         Returns:
             ConnectorMetadata: the connector metadata.
         """
-
-        # Should only be called while set to valid metadata.
         assert self._connector_metadata is not None
         return self._connector_metadata
 
@@ -128,8 +78,7 @@ class KVConnectorBase_V1(ABC):
         return
 
     @abstractmethod
-    def start_load_kv(self, forward_context: "ForwardContext",
-                      **kwargs) -> None:
+    def start_load_kv(self, forward_context: 'ForwardContext', **kwargs) -> None:
         """
         Start loading the KV cache from the connector to vLLM's paged
         KV buffer. This is called from the forward context before the
@@ -161,8 +110,7 @@ class KVConnectorBase_V1(ABC):
         pass
 
     @abstractmethod
-    def save_kv_layer(self, layer_name: str, kv_layer: torch.Tensor,
-                      attn_metadata: "AttentionMetadata", **kwargs) -> None:
+    def save_kv_layer(self, layer_name: str, kv_layer: torch.Tensor, attn_metadata: 'AttentionMetadata', **kwargs) -> None:
         """
         Start saving a layer of KV cache from vLLM's paged buffer 
         to the connector. This is called from within attention layer to
@@ -188,9 +136,7 @@ class KVConnectorBase_V1(ABC):
         """
         pass
 
-    def get_finished(
-        self, finished_req_ids: set[str]
-    ) -> tuple[Optional[set[str]], Optional[set[str]]]:
+    def get_finished(self, finished_req_ids: set[str]) -> tuple[Optional[set[str]], Optional[set[str]]]:
         """
         Notifies worker-side connector ids of requests that have
         finished generating tokens on the worker.
@@ -204,18 +150,10 @@ class KVConnectorBase_V1(ABC):
             The finished saves/sends req ids must belong to a set provided in a
             call to this method (this call or a prior one).
         """
-        return None, None
-
-    # ==============================
-    # Scheduler-side methods
-    # ==============================
+        return (None, None)
 
     @abstractmethod
-    def get_num_new_matched_tokens(
-        self,
-        request: "Request",
-        num_computed_tokens: int,
-    ) -> tuple[int, bool]:
+    def get_num_new_matched_tokens(self, request: 'Request', num_computed_tokens: int) -> tuple[int, bool]:
         """
         Get number of new tokens that can be loaded from the
         external KV cache beyond the num_computed_tokens.
@@ -236,9 +174,7 @@ class KVConnectorBase_V1(ABC):
         pass
 
     @abstractmethod
-    def update_state_after_alloc(self, request: "Request",
-                                 blocks: "KVCacheBlocks",
-                                 num_external_tokens: int):
+    def update_state_after_alloc(self, request: 'Request', blocks: 'KVCacheBlocks', num_external_tokens: int):
         """
         Update KVConnector state after block allocation.
 
@@ -257,8 +193,7 @@ class KVConnectorBase_V1(ABC):
         pass
 
     @abstractmethod
-    def build_connector_meta(
-            self, scheduler_output: SchedulerOutput) -> KVConnectorMetadata:
+    def build_connector_meta(self, scheduler_output: SchedulerOutput) -> KVConnectorMetadata:
         """
         Build the connector metadata for this step.
 
@@ -270,11 +205,7 @@ class KVConnectorBase_V1(ABC):
         """
         pass
 
-    def request_finished(
-        self,
-        request: "Request",
-        block_ids: list[int],
-    ) -> tuple[bool, Optional[dict[str, Any]]]:
+    def request_finished(self, request: 'Request', block_ids: list[int]) -> tuple[bool, Optional[dict[str, Any]]]:
         """
         Called when a request has finished, before its blocks are freed.
 
@@ -285,4 +216,4 @@ class KVConnectorBase_V1(ABC):
             Optional KVTransferParams to be included in the request outputs
             returned by the engine.
         """
-        return False, None
+        return (False, None)

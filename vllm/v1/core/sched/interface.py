@@ -1,22 +1,18 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Optional, Union
-
+from vllm.distributed.kv_transfer.kv_connector.v1 import KVConnectorBase_V1
+from vllm.v1.core.sched.output import SchedulerOutput
+from vllm.v1.engine import EngineCoreOutputs
+from vllm.v1.metrics.stats import SchedulerStats
+from vllm.v1.outputs import ModelRunnerOutput
+from vllm.v1.request import Request, RequestStatus
 if TYPE_CHECKING:
-    from vllm.distributed.kv_transfer.kv_connector.v1 import KVConnectorBase_V1
-    from vllm.v1.core.sched.output import SchedulerOutput
-    from vllm.v1.engine import EngineCoreOutputs
-    from vllm.v1.metrics.stats import SchedulerStats
-    from vllm.v1.outputs import ModelRunnerOutput
-    from vllm.v1.request import Request, RequestStatus
-
 
 class SchedulerInterface(ABC):
 
     @abstractmethod
-    def schedule(self) -> "SchedulerOutput":
+    def schedule(self) -> 'SchedulerOutput':
         """Schedule the requests to process in this scheduling step.
 
         The scheduling decision is made at the iteration level. Each scheduling
@@ -42,11 +38,7 @@ class SchedulerInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_from_output(
-        self,
-        scheduler_output: "SchedulerOutput",
-        model_runner_output: "ModelRunnerOutput",
-    ) -> dict[int, "EngineCoreOutputs"]:
+    def update_from_output(self, scheduler_output: 'SchedulerOutput', model_runner_output: 'ModelRunnerOutput') -> dict[int, 'EngineCoreOutputs']:
         """Update the scheduler state based on the model runner output.
 
         This method is called after the model runner has processed the scheduled
@@ -62,7 +54,7 @@ class SchedulerInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_request(self, request: "Request") -> None:
+    def add_request(self, request: 'Request') -> None:
         """Add a new request to the scheduler's internal queue.
         
         Args:
@@ -71,11 +63,7 @@ class SchedulerInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def finish_requests(
-        self,
-        request_ids: Union[str, Iterable[str]],
-        finished_status: "RequestStatus",
-    ) -> None:
+    def finish_requests(self, request_ids: Union[str, Iterable[str]], finished_status: 'RequestStatus') -> None:
         """Finish the requests in the scheduler's internal queue. If the request
         is not in the queue, this method will do nothing.
 
@@ -134,7 +122,7 @@ class SchedulerInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def make_stats(self) -> Optional["SchedulerStats"]:
+    def make_stats(self) -> Optional['SchedulerStats']:
         """Make a SchedulerStats object for logging.
 
         The SchedulerStats object is created for every scheduling step.
@@ -146,5 +134,5 @@ class SchedulerInterface(ABC):
         """Shutdown the scheduler."""
         raise NotImplementedError
 
-    def get_kv_connector(self) -> Optional["KVConnectorBase_V1"]:
+    def get_kv_connector(self) -> Optional['KVConnectorBase_V1']:
         return None

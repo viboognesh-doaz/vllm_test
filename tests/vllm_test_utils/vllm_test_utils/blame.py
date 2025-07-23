@@ -1,19 +1,14 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
+from collections.abc import Generator
+from typing import Callable
 import contextlib
 import dataclasses
 import sys
 import traceback
-from collections.abc import Generator
-from typing import Callable
-
 
 @dataclasses.dataclass
 class BlameResult:
     found: bool = False
-    trace_stack: str = ""
-
+    trace_stack: str = ''
 
 @contextlib.contextmanager
 def blame(func: Callable) -> Generator[BlameResult, None, None]:
@@ -35,21 +30,15 @@ def blame(func: Callable) -> Generator[BlameResult, None, None]:
     def _trace_calls(frame, event, arg=None):
         nonlocal result
         if event in ['call', 'return']:
-            # for every function call or return
             try:
-                # Temporarily disable the trace function
                 sys.settrace(None)
-                # check condition here
                 if not result.found and func():
                     result.found = True
-                    result.trace_stack = "".join(traceback.format_stack())
-                # Re-enable the trace function
+                    result.trace_stack = ''.join(traceback.format_stack())
                 sys.settrace(_trace_calls)
             except NameError:
-                # modules are deleted during shutdown
                 pass
         return _trace_calls
-
     try:
         sys.settrace(_trace_calls)
         yield result

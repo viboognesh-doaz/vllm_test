@@ -1,13 +1,8 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-import math
 from typing import List, Optional
-
 from vllm.core.block.common import BlockList
 from vllm.core.block.interfaces import Block, DeviceAwareBlockAllocator
 from vllm.utils import Device, cdiv, chunk_list
-
+import math
 
 class BlockTable:
     """A class to manage blocks for a specific sequence.
@@ -41,26 +36,17 @@ class BlockTable:
             blocks.
     """
 
-    def __init__(
-        self,
-        block_size: int,
-        block_allocator: DeviceAwareBlockAllocator,
-        _blocks: Optional[List[Block]] = None,
-        max_block_sliding_window: Optional[int] = None,
-    ):
+    def __init__(self, block_size: int, block_allocator: DeviceAwareBlockAllocator, _blocks: Optional[List[Block]]=None, max_block_sliding_window: Optional[int]=None):
         self._block_size = block_size
         self._allocator = block_allocator
         if _blocks is None:
             _blocks = []
         self._blocks: BlockList = BlockList(_blocks)
-
         self._max_block_sliding_window = max_block_sliding_window
         self._num_full_slots = self._get_num_token_ids()
 
     @staticmethod
-    def get_num_required_blocks(token_ids: List[int],
-                                block_size: int,
-                                num_lookahead_slots: int = 0) -> int:
+    def get_num_required_blocks(token_ids: List[int], block_size: int, num_lookahead_slots: int=0) -> int:
         """Calculates the minimum number of blocks required to store a given
         sequence of token IDs along with any look-ahead slots that may be
         required (like in multi-step + chunked-prefill).
@@ -81,10 +67,7 @@ class BlockTable:
         """
         return cdiv(len(token_ids) + num_lookahead_slots, block_size)
 
-    def allocate(self,
-                 token_ids: List[int],
-                 device: Device = Device.GPU,
-                 extra_hash: Optional[int] = None) -> None:
+    def allocate(self, token_ids: List[int], device: Device=Device.GPU, extra_hash: Optional[int]=None) -> None:
         """Allocates memory blocks for storing the given sequence of token IDs.
 
         This method allocates the required number of blocks to store the given
@@ -100,10 +83,7 @@ class BlockTable:
         """
         assert not self._is_allocated
         assert token_ids
-        blocks = self._allocate_blocks_for_token_ids(prev_block=None,
-                                                     token_ids=token_ids,
-                                                     device=device,
-                                                     extra_hash=extra_hash)
+        blocks = self._allocate_blocks_for_token_ids(prev_block=None, token_ids=token_ids, device=device, extra_hash=extra_hash)
         self.update(blocks)
         self._num_full_slots = len(token_ids)
 
@@ -113,11 +93,7 @@ class BlockTable:
         """
         self._blocks.update(blocks)
 
-    def append_token_ids(self,
-                         token_ids: List[int],
-                         num_lookahead_slots: int = 0,
-                         num_computed_slots: Optional[int] = None,
-                         extra_hash: Optional[int] = None) -> None:
+    def append_token_ids(self, token_ids: List[int], num_lookahead_slots: int=0, num_computed_slots: Optional[int]=None, extra_hash: Optional[int]=None) -> None:
         """Appends a sequence of token IDs to the existing blocks in the
         BlockTable.
 
@@ -143,39 +119,25 @@ class BlockTable:
                 factors such as adapters that influence the block, apart
                 from the token_ids.
         """
-        assert self._is_allocated, "no blocks have been allocated"
+        assert self._is_allocated, 'no blocks have been allocated'
         assert len(self._blocks) > 0
-
-        # Drop blocks that are no longer needed due to sliding window
         if self._max_block_sliding_window is not None:
             null_block = self._allocator.allocate_or_get_null_block()
             assert num_computed_slots is not None
-            end_block_idx = (num_computed_slots //
-                             self._block_size) - self._max_block_sliding_window
+            end_block_idx = num_computed_slots // self._block_size - self._max_block_sliding_window
             for idx in range(0, end_block_idx):
                 b = self._blocks[idx]
                 if b is not null_block:
                     self._allocator.free(b)
                     self._blocks[idx] = null_block
-
-        # Ensure there are enough empty slots for the new tokens plus
-        # lookahead slots
-        self.ensure_num_empty_slots(num_empty_slots=len(token_ids) +
-                                    num_lookahead_slots,
-                                    extra_hash=extra_hash)
-
-        # Update the blocks with the new tokens
+        self.ensure_num_empty_slots(num_empty_slots=len(token_ids) + num_lookahead_slots, extra_hash=extra_hash)
         first_block_idx = self._num_full_slots // self._block_size
         token_blocks = self._chunk_token_blocks_for_append(token_ids)
-
         for i, token_block in enumerate(token_blocks):
             self._blocks.append_token_ids(first_block_idx + i, token_block)
-
         self._num_full_slots += len(token_ids)
 
-    def ensure_num_empty_slots(self,
-                               num_empty_slots: int,
-                               extra_hash: Optional[int] = None) -> None:
+    def ensure_num_empty_slots(self, num_empty_slots: int, extra_hash: Optional[int]=None) -> None:
         """Ensures that the BlockTable has at least the specified number of
         empty slots available.
 
@@ -190,26 +152,17 @@ class BlockTable:
                 factors such as adapters that influence the block, apart
                 from the token_ids.
         """
-        # Currently the block table only supports
-        # appending tokens to GPU blocks.
         device = Device.GPU
         assert self._is_allocated
-
         if self._num_empty_slots >= num_empty_slots:
             return
-
         slots_to_allocate = num_empty_slots - self._num_empty_slots
         blocks_to_allocate = cdiv(slots_to_allocate, self._block_size)
-
         for _ in range(blocks_to_allocate):
             assert len(self._blocks) > 0
-            self._blocks.append(
-                self._allocator.allocate_mutable_block(
-                    prev_block=self._blocks[-1],
-                    device=device,
-                    extra_hash=extra_hash))
+            self._blocks.append(self._allocator.allocate_mutable_block(prev_block=self._blocks[-1], device=device, extra_hash=extra_hash))
 
-    def fork(self) -> "BlockTable":
+    def fork(self) -> 'BlockTable':
         """Creates a new BlockTable instance with a copy of the blocks from the
         current instance.
 
@@ -225,12 +178,7 @@ class BlockTable:
         assert self._is_allocated
         assert len(self._blocks) > 0
         forked_blocks = self._allocator.fork(self._blocks[-1])
-        return BlockTable(
-            block_size=self._block_size,
-            block_allocator=self._allocator,
-            _blocks=forked_blocks,
-            max_block_sliding_window=self._max_block_sliding_window,
-        )
+        return BlockTable(block_size=self._block_size, block_allocator=self._allocator, _blocks=forked_blocks, max_block_sliding_window=self._max_block_sliding_window)
 
     def free(self) -> None:
         """Frees the memory occupied by the blocks in the BlockTable.
@@ -274,19 +222,10 @@ class BlockTable:
             List[int]: The postfix of sequence_token_ids that has not yet been
                 appended to the block table.
         """
-
-        # Since the block table is append-only, the unseen token ids are the
-        # ones after the appended ones.
         return sequence_token_ids[self.num_full_slots:]
 
-    def _allocate_blocks_for_token_ids(
-            self,
-            prev_block: Optional[Block],
-            token_ids: List[int],
-            device: Device,
-            extra_hash: Optional[int] = None) -> List[Block]:
+    def _allocate_blocks_for_token_ids(self, prev_block: Optional[Block], token_ids: List[int], device: Device, extra_hash: Optional[int]=None) -> List[Block]:
         blocks: List[Block] = []
-
         block_token_ids = []
         tail_token_ids = []
         for cur_token_ids in chunk_list(token_ids, self._block_size):
@@ -294,45 +233,29 @@ class BlockTable:
                 block_token_ids.append(cur_token_ids)
             else:
                 tail_token_ids.append(cur_token_ids)
-
         if block_token_ids:
-            blocks.extend(
-                self._allocator.allocate_immutable_blocks(
-                    prev_block,
-                    block_token_ids=block_token_ids,
-                    device=device,
-                    extra_hash=extra_hash))
+            blocks.extend(self._allocator.allocate_immutable_blocks(prev_block, block_token_ids=block_token_ids, device=device, extra_hash=extra_hash))
             prev_block = blocks[-1]
-
         if tail_token_ids:
             assert len(tail_token_ids) == 1
             cur_token_ids = tail_token_ids[0]
-
-            block = self._allocator.allocate_mutable_block(
-                prev_block=prev_block, device=device, extra_hash=extra_hash)
+            block = self._allocator.allocate_mutable_block(prev_block=prev_block, device=device, extra_hash=extra_hash)
             block.append_token_ids(cur_token_ids)
-
             blocks.append(block)
-
         return blocks
 
     def _get_all_token_ids(self) -> List[int]:
-        # NOTE: This function is O(seq_len); use sparingly.
         token_ids: List[int] = []
-
         if not self._is_allocated:
             return token_ids
-
         for block in self.blocks:
             token_ids.extend(block.token_ids)
-
         return token_ids
 
     def _get_num_token_ids(self) -> int:
         res = 0
         for block in self.blocks:
             res += len(block.token_ids)
-
         return res
 
     @property
@@ -358,28 +281,19 @@ class BlockTable:
         """
         return self._num_full_slots
 
-    def get_num_blocks_touched_by_append_slots(
-            self, token_ids: List[int], num_lookahead_slots: int) -> int:
+    def get_num_blocks_touched_by_append_slots(self, token_ids: List[int], num_lookahead_slots: int) -> int:
         """Determine how many blocks will be "touched" by appending the token
         ids.
 
         This is required for the scheduler to determine whether a sequence can
         continue generation, or if it must be preempted.
         """
-        # Math below is equivalent to:
-        # all_token_ids = token_ids + [-1] * num_lookahead_slots
-        # token_blocks = self._chunk_token_blocks_for_append(all_token_ids)
-        # return len(token_blocks)
-
         num_token_ids = len(token_ids) + num_lookahead_slots
-        first_chunk_size = self._block_size - (self._num_full_slots %
-                                               self._block_size)
-        num_token_blocks = (1 + math.ceil(
-            (num_token_ids - first_chunk_size) / self._block_size))
+        first_chunk_size = self._block_size - self._num_full_slots % self._block_size
+        num_token_blocks = 1 + math.ceil((num_token_ids - first_chunk_size) / self._block_size)
         return num_token_blocks
 
-    def _chunk_token_blocks_for_append(
-            self, token_ids: List[int]) -> List[List[int]]:
+    def _chunk_token_blocks_for_append(self, token_ids: List[int]) -> List[List[int]]:
         """Split the token ids into block-sized chunks so they can be easily
         appended to blocks. The first such "token block" may have less token ids
         than the block size, since the last allocated block may be partially
@@ -387,13 +301,9 @@ class BlockTable:
 
         If no token ids are provided, then no chunks are returned.
         """
-
         if not token_ids:
             return []
-
-        first_chunk_size = self._block_size - (self._num_full_slots %
-                                               self._block_size)
+        first_chunk_size = self._block_size - self._num_full_slots % self._block_size
         token_blocks = [token_ids[:first_chunk_size]]
-        token_blocks.extend(
-            chunk_list(token_ids[first_chunk_size:], self._block_size))
+        token_blocks.extend(chunk_list(token_ids[first_chunk_size:], self._block_size))
         return token_blocks

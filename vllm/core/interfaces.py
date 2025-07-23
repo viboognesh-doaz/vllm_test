@@ -1,15 +1,12 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-import enum
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from typing import Sequence as GenericSequence
 from typing import Tuple
-
+from vllm.core.block_manager import SelfAttnBlockSpaceManager
+from vllm.core.placeholder_block_space_manager import PlaceholderBlockSpaceManager
 from vllm.sequence import Sequence, SequenceGroup
 from vllm.utils import Device
-
+import enum
 
 class AllocStatus(enum.Enum):
     """Result for BlockSpaceManager.can_allocate
@@ -24,28 +21,19 @@ class AllocStatus(enum.Enum):
     LATER = enum.auto()
     NEVER = enum.auto()
 
-
 class BlockSpaceManager(ABC):
 
     @staticmethod
     def get_block_space_manager_class(version: str):
         version = version.lower()
-
-        if version == "selfattn":
-            from vllm.core.block_manager import SelfAttnBlockSpaceManager
+        if version == 'selfattn':
             return SelfAttnBlockSpaceManager
-
-        if version == "placeholder":
-            from vllm.core.placeholder_block_space_manager import (
-                PlaceholderBlockSpaceManager)
+        if version == 'placeholder':
             return PlaceholderBlockSpaceManager
-
-        raise ValueError(f"Unknown version {version=}")
+        raise ValueError(f'Unknown version version={version!r}')
 
     @abstractmethod
-    def can_allocate(self,
-                     seq_group: SequenceGroup,
-                     num_lookahead_slots: int = 0) -> AllocStatus:
+    def can_allocate(self, seq_group: SequenceGroup, num_lookahead_slots: int=0) -> AllocStatus:
         pass
 
     @abstractmethod
@@ -53,16 +41,11 @@ class BlockSpaceManager(ABC):
         pass
 
     @abstractmethod
-    def can_append_slots(self, seq_group: SequenceGroup,
-                         num_lookahead_slots: int) -> bool:
+    def can_append_slots(self, seq_group: SequenceGroup, num_lookahead_slots: int) -> bool:
         pass
 
     @abstractmethod
-    def append_slots(
-        self,
-        seq: Sequence,
-        num_lookahead_slots: int,
-    ) -> List[Tuple[int, int]]:
+    def append_slots(self, seq: Sequence, num_lookahead_slots: int) -> List[Tuple[int, int]]:
         pass
 
     @abstractmethod
@@ -70,8 +53,7 @@ class BlockSpaceManager(ABC):
         pass
 
     @abstractmethod
-    def can_swap_in(self, seq_group: SequenceGroup,
-                    num_lookahead_slots: int) -> AllocStatus:
+    def can_swap_in(self, seq_group: SequenceGroup, num_lookahead_slots: int) -> AllocStatus:
         pass
 
     @abstractmethod
@@ -103,21 +85,15 @@ class BlockSpaceManager(ABC):
         pass
 
     @abstractmethod
-    def access_all_blocks_in_seq(
-        self,
-        seq: Sequence,
-        access_time: float,
-    ) -> None:
+    def access_all_blocks_in_seq(self, seq: Sequence, access_time: float) -> None:
         pass
 
     @abstractmethod
-    def get_common_computed_block_ids(
-            self, seqs: List[Sequence]) -> GenericSequence[int]:
+    def get_common_computed_block_ids(self, seqs: List[Sequence]) -> GenericSequence[int]:
         pass
 
     @abstractmethod
-    def mark_blocks_as_computed(self, seq_group: SequenceGroup,
-                                token_chunk_size: int):
+    def mark_blocks_as_computed(self, seq_group: SequenceGroup, token_chunk_size: int):
         pass
 
     @abstractmethod
@@ -126,7 +102,7 @@ class BlockSpaceManager(ABC):
         pass
 
     @abstractmethod
-    def reset_prefix_cache(self, device: Optional[Device] = None) -> bool:
+    def reset_prefix_cache(self, device: Optional[Device]=None) -> bool:
         """Reset prefix cache for specified or all devices."""
         pass
 

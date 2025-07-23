@@ -1,15 +1,9 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from collections import deque
 from dataclasses import dataclass
 from typing import Deque, Dict, Iterable, List, Optional, Protocol, Tuple
-
 from vllm.core.block.interfaces import Block, BlockAllocator
-
 BlockId = int
 RefCount = int
-
 
 class RefCounterProtocol(Protocol):
 
@@ -21,7 +15,6 @@ class RefCounterProtocol(Protocol):
 
     def get(self, block_id: BlockId) -> RefCount:
         raise NotImplementedError
-
 
 class RefCounter(RefCounterProtocol):
     """A class for managing reference counts for a set of block indices.
@@ -37,17 +30,12 @@ class RefCounter(RefCounterProtocol):
 
     def __init__(self, all_block_indices: Iterable[BlockId]):
         deduped = set(all_block_indices)
-        self._refcounts: Dict[BlockId, RefCount] = {
-            index: 0
-            for index in deduped
-        }
+        self._refcounts: Dict[BlockId, RefCount] = {index: 0 for index in deduped}
 
     def incr(self, block_id: BlockId) -> RefCount:
         assert block_id in self._refcounts
         pre_incr_refcount = self._refcounts[block_id]
-
         assert pre_incr_refcount >= 0
-
         post_incr_refcount = pre_incr_refcount + 1
         self._refcounts[block_id] = post_incr_refcount
         return post_incr_refcount
@@ -55,21 +43,17 @@ class RefCounter(RefCounterProtocol):
     def decr(self, block_id: BlockId) -> RefCount:
         assert block_id in self._refcounts
         refcount = self._refcounts[block_id]
-
         assert refcount > 0
         refcount -= 1
-
         self._refcounts[block_id] = refcount
-
         return refcount
 
     def get(self, block_id: BlockId) -> RefCount:
         assert block_id in self._refcounts
         return self._refcounts[block_id]
 
-    def as_readonly(self) -> "ReadOnlyRefCounter":
+    def as_readonly(self) -> 'ReadOnlyRefCounter':
         return ReadOnlyRefCounter(self)
-
 
 class ReadOnlyRefCounter(RefCounterProtocol):
     """A read-only view of the RefCounter class.
@@ -87,14 +71,13 @@ class ReadOnlyRefCounter(RefCounterProtocol):
         self._refcounter = refcounter
 
     def incr(self, block_id: BlockId) -> RefCount:
-        raise ValueError("Incr not allowed")
+        raise ValueError('Incr not allowed')
 
     def decr(self, block_id: BlockId) -> RefCount:
-        raise ValueError("Decr not allowed")
+        raise ValueError('Decr not allowed')
 
     def get(self, block_id: BlockId) -> RefCount:
         return self._refcounter.get(block_id)
-
 
 class CopyOnWriteTracker:
     """A class for tracking and managing copy-on-write operations for blocks.
@@ -119,12 +102,10 @@ class CopyOnWriteTracker:
         block_id = block.block_id
         if block_id is None:
             return True
-
         refcount = self._refcounter.get(block_id)
         return refcount <= 1
 
-    def record_cow(self, src_block_id: Optional[BlockId],
-                   trg_block_id: Optional[BlockId]) -> None:
+    def record_cow(self, src_block_id: Optional[BlockId], trg_block_id: Optional[BlockId]) -> None:
         """Records a copy-on-write operation from source to target block id
         Args:
             src_block_id (BlockId): The source block id from which to copy 
@@ -153,7 +134,6 @@ class CopyOnWriteTracker:
         self._copy_on_writes = []
         return cows
 
-
 class BlockPool:
     """Used to pre-allocate block objects, in order to avoid excessive python
     object allocations/deallocations.
@@ -165,24 +145,16 @@ class BlockPool:
     prefix caching and more complicated sharing of physical blocks.
     """
 
-    def __init__(self, block_size: int, create_block: Block.Factory,
-                 allocator: BlockAllocator, pool_size: int):
+    def __init__(self, block_size: int, create_block: Block.Factory, allocator: BlockAllocator, pool_size: int):
         self._block_size = block_size
         self._create_block = create_block
         self._allocator = allocator
         self._pool_size = pool_size
         assert self._pool_size >= 0
-
         self._free_ids: Deque[int] = deque(range(self._pool_size))
         self._pool = []
         for i in range(self._pool_size):
-            self._pool.append(
-                self._create_block(prev_block=None,
-                                   token_ids=[],
-                                   block_size=self._block_size,
-                                   allocator=self._allocator,
-                                   block_id=None,
-                                   extra_hash=None))
+            self._pool.append(self._create_block(prev_block=None, token_ids=[], block_size=self._block_size, allocator=self._allocator, block_id=None, extra_hash=None))
 
     def increase_pool(self):
         """Doubles the internal pool size
@@ -190,44 +162,22 @@ class BlockPool:
         cur_pool_size = self._pool_size
         new_pool_size = cur_pool_size * 2
         self._pool_size = new_pool_size
-
         self._free_ids += deque(range(cur_pool_size, new_pool_size))
-
         for i in range(cur_pool_size, new_pool_size):
-            self._pool.append(
-                self._create_block(prev_block=None,
-                                   token_ids=[],
-                                   block_size=self._block_size,
-                                   allocator=self._allocator,
-                                   block_id=None,
-                                   extra_hash=None))
+            self._pool.append(self._create_block(prev_block=None, token_ids=[], block_size=self._block_size, allocator=self._allocator, block_id=None, extra_hash=None))
 
-    def init_block(self,
-                   prev_block: Optional[Block],
-                   token_ids: List[int],
-                   block_size: int,
-                   physical_block_id: Optional[int],
-                   extra_hash: Optional[int] = None) -> Block:
+    def init_block(self, prev_block: Optional[Block], token_ids: List[int], block_size: int, physical_block_id: Optional[int], extra_hash: Optional[int]=None) -> Block:
         if len(self._free_ids) == 0:
             self.increase_pool()
             assert len(self._free_ids) > 0
-
         pool_id = self._free_ids.popleft()
-
         block = self._pool[pool_id]
-        block.__init__(  # type: ignore[misc]
-            prev_block=prev_block,
-            token_ids=token_ids,
-            block_size=block_size,
-            allocator=block._allocator,  # type: ignore[attr-defined] 
-            block_id=physical_block_id,
-            extra_hash=extra_hash)
-        block.pool_id = pool_id  # type: ignore[attr-defined]
+        block.__init__(prev_block=prev_block, token_ids=token_ids, block_size=block_size, allocator=block._allocator, block_id=physical_block_id, extra_hash=extra_hash)
+        block.pool_id = pool_id
         return block
 
     def free_block(self, block: Block) -> None:
-        self._free_ids.appendleft(block.pool_id)  # type: ignore[attr-defined]
-
+        self._free_ids.appendleft(block.pool_id)
 
 class BlockList:
     """This class is an optimization to allow fast-access to physical 
@@ -239,22 +189,18 @@ class BlockList:
     def __init__(self, blocks: List[Block]):
         self._blocks: List[Block] = []
         self._block_ids: List[int] = []
-
         self.update(blocks)
 
     def _add_block_id(self, block_id: Optional[BlockId]) -> None:
         assert block_id is not None
         self._block_ids.append(block_id)
 
-    def _update_block_id(self, block_index: int,
-                         new_block_id: Optional[BlockId]) -> None:
+    def _update_block_id(self, block_index: int, new_block_id: Optional[BlockId]) -> None:
         assert new_block_id is not None
         self._block_ids[block_index] = new_block_id
 
     def update(self, blocks: List[Block]):
         self._blocks = blocks
-
-        # Cache block ids for fast query
         self._block_ids = []
         for block in self._blocks:
             self._add_block_id(block.block_id)
@@ -262,10 +208,7 @@ class BlockList:
     def append_token_ids(self, block_index: int, token_ids: List[int]) -> None:
         block = self._blocks[block_index]
         prev_block_id = block.block_id
-
         block.append_token_ids(token_ids)
-
-        # CoW or promotion may update the internal block_id
         if prev_block_id != block.block_id:
             self._update_block_id(block_index, block.block_id)
 
@@ -293,7 +236,6 @@ class BlockList:
     def ids(self) -> List[int]:
         return self._block_ids
 
-
 @dataclass
 class CacheMetricData:
     """A utility dataclass to maintain cache metric.
@@ -316,15 +258,9 @@ class CacheMetricData:
     def query(self, hit: bool):
         self.num_incompleted_block_queries += 1
         self.num_incompleted_block_hit += 1 if hit else 0
-
-        # When a block is completed, update the cache hit rate
-        # and reset the incomplete numbers.
         if self.num_incompleted_block_queries == self.block_size:
-            hit_rate = (self.num_incompleted_block_hit /
-                        self.num_incompleted_block_queries)
-            self.completed_block_cache_hit_rate = (
-                self.completed_block_cache_hit_rate * self.num_completed_blocks
-                + hit_rate) / (self.num_completed_blocks + 1)
+            hit_rate = self.num_incompleted_block_hit / self.num_incompleted_block_queries
+            self.completed_block_cache_hit_rate = (self.completed_block_cache_hit_rate * self.num_completed_blocks + hit_rate) / (self.num_completed_blocks + 1)
             self.num_incompleted_block_queries = 0
             self.num_incompleted_block_hit = 0
             self.num_completed_blocks += 1
@@ -334,17 +270,13 @@ class CacheMetricData:
         total_blocks = self.num_completed_blocks + incomplete_ratio
         if total_blocks == 0:
             return 0.0
-
-        completed_block_hit, incompleted_block_hit = 0.0, 0.0
+        completed_block_hit, incompleted_block_hit = (0.0, 0.0)
         if self.num_completed_blocks > 0:
-            completed_block_hit = (self.completed_block_cache_hit_rate *
-                                   self.num_completed_blocks)
+            completed_block_hit = self.completed_block_cache_hit_rate * self.num_completed_blocks
         if self.num_incompleted_block_queries > 0:
-            incompleted_hit_rate = (self.num_incompleted_block_hit /
-                                    self.num_incompleted_block_queries)
-            incompleted_block_hit = (incompleted_hit_rate * incomplete_ratio)
+            incompleted_hit_rate = self.num_incompleted_block_hit / self.num_incompleted_block_queries
+            incompleted_block_hit = incompleted_hit_rate * incomplete_ratio
         return (completed_block_hit + incompleted_block_hit) / total_blocks
-
 
 def get_all_blocks_recursively(last_block: Block) -> List[Block]:
     """Retrieves all the blocks in a sequence starting from the last block.
@@ -365,7 +297,6 @@ def get_all_blocks_recursively(last_block: Block) -> List[Block]:
         if block.prev_block is not None:
             recurse(block.prev_block, lst)
         lst.append(block)
-
     all_blocks: List[Block] = []
     recurse(last_block, all_blocks)
     return all_blocks

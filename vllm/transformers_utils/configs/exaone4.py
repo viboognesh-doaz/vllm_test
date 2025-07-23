@@ -1,30 +1,6 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# ruff: noqa: E501
-
-# Copied from
-# https://github.com/lgai-exaone/transformers/blob/add-exaone4/src/transformers/models/exaone4/configuration_exaone4.py
-# Copyright 2025 The LG CNS Gen AI Solution Delivery Team.
-# Copyright 2025 The LG AI Research and HuggingFace Inc. team. All rights reserved.
-#
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from transformers.configuration_utils import (PretrainedConfig,
-                                              layer_type_validation)
+from transformers.configuration_utils import PretrainedConfig, layer_type_validation
 from transformers.utils import logging
-
 logger = logging.get_logger(__name__)
-
 
 def check_is_sliding(config, layer_idx):
     """
@@ -33,25 +9,18 @@ def check_is_sliding(config, layer_idx):
     if config.sliding_window is None:
         return False
     if config.layer_types is not None:
-        return config.layer_types[layer_idx] == "sliding_attention"
+        return config.layer_types[layer_idx] == 'sliding_attention'
     if isinstance(config.sliding_window_pattern, int):
-        return ((layer_idx + 1) % config.sliding_window_pattern) != 0
+        return (layer_idx + 1) % config.sliding_window_pattern != 0
     elif isinstance(config.sliding_window_pattern, str):
-        assert isinstance(config.sliding_window, int), (
-            f"Sliding window must be positive integer, but got {config.sliding_window}"
-        )
-        return (layer_idx != config.num_hidden_layers - 1
-                and config.sliding_window_pattern[layer_idx % len(
-                    config.sliding_window_pattern)] == "L")
+        assert isinstance(config.sliding_window, int), f'Sliding window must be positive integer, but got {config.sliding_window}'
+        return layer_idx != config.num_hidden_layers - 1 and config.sliding_window_pattern[layer_idx % len(config.sliding_window_pattern)] == 'L'
     else:
-        logger.warning_once(
-            "Sliding window is set, but none of `sliding_window_pattern` or `layer_types` is set. "
-            "Defaulting to use 'full_attention' for all layers.")
+        logger.warning_once("Sliding window is set, but none of `sliding_window_pattern` or `layer_types` is set. Defaulting to use 'full_attention' for all layers.")
     return False
 
-
 class Exaone4Config(PretrainedConfig):
-    r"""
+    """
     This is the configuration class to store the configuration of a [`Exaone4Model`]. It is used to
     instantiate a EXAONE 4.0 model according to the specified arguments, defining the model architecture. Instantiating a
     configuration with the defaults will yield a similar configuration to that of the EXAONE-4.0-Instruct [LGAI-EXAONE/EXAONE-4.0-Instruct](https://huggingface.co/LGAI-EXAONE/EXAONE-4.0-Instruct)
@@ -169,49 +138,12 @@ class Exaone4Config(PretrainedConfig):
     >>> # Accessing the model configuration
     >>> configuration = model.config
     ```"""
+    model_type = 'exaone4'
+    keys_to_ignore_at_inference = ['past_key_values']
+    base_model_tp_plan = {'layers.*.self_attn.q_proj': 'colwise', 'layers.*.self_attn.k_proj': 'colwise', 'layers.*.self_attn.v_proj': 'colwise', 'layers.*.self_attn.o_proj': 'rowwise', 'layers.*.mlp.gate_proj': 'colwise', 'layers.*.mlp.up_proj': 'colwise', 'layers.*.mlp.down_proj': 'rowwise'}
+    base_model_pp_plan = {'embed_tokens': (['input_ids'], ['inputs_embeds']), 'layers': (['hidden_states', 'attention_mask'], ['hidden_states']), 'norm': (['hidden_states'], ['hidden_states'])}
 
-    model_type = "exaone4"
-    keys_to_ignore_at_inference = ["past_key_values"]
-    # Default tensor parallel plan for base model `LlamaModel`
-    base_model_tp_plan = {
-        "layers.*.self_attn.q_proj": "colwise",
-        "layers.*.self_attn.k_proj": "colwise",
-        "layers.*.self_attn.v_proj": "colwise",
-        "layers.*.self_attn.o_proj": "rowwise",
-        "layers.*.mlp.gate_proj": "colwise",
-        "layers.*.mlp.up_proj": "colwise",
-        "layers.*.mlp.down_proj": "rowwise",
-    }
-    base_model_pp_plan = {
-        "embed_tokens": (["input_ids"], ["inputs_embeds"]),
-        "layers": (["hidden_states", "attention_mask"], ["hidden_states"]),
-        "norm": (["hidden_states"], ["hidden_states"]),
-    }
-
-    def __init__(
-        self,
-        vocab_size=102400,
-        hidden_size=4096,
-        intermediate_size=None,
-        num_hidden_layers=32,
-        num_attention_heads=32,
-        num_key_value_heads=None,
-        hidden_act="silu",
-        max_position_embeddings=2048,
-        initializer_range=0.02,
-        rms_norm_eps=1e-5,
-        use_cache=True,
-        bos_token_id=0,
-        eos_token_id=2,
-        tie_word_embeddings=False,
-        rope_theta=10000.0,
-        rope_scaling=None,
-        attention_dropout=0.0,
-        sliding_window=None,
-        sliding_window_pattern=None,
-        layer_types=None,
-        **kwargs,
-    ):
+    def __init__(self, vocab_size=102400, hidden_size=4096, intermediate_size=None, num_hidden_layers=32, num_attention_heads=32, num_key_value_heads=None, hidden_act='silu', max_position_embeddings=2048, initializer_range=0.02, rms_norm_eps=1e-05, use_cache=True, bos_token_id=0, eos_token_id=2, tie_word_embeddings=False, rope_theta=10000.0, rope_scaling=None, attention_dropout=0.0, sliding_window=None, sliding_window_pattern=None, layer_types=None, **kwargs):
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
@@ -233,20 +165,9 @@ class Exaone4Config(PretrainedConfig):
         self.rope_scaling = rope_scaling
         self.sliding_window = sliding_window
         self.sliding_window_pattern = sliding_window_pattern
-
         self.layer_types = layer_types
         if self.layer_types is None:
-            self.layer_types = [
-                "sliding_attention"
-                if check_is_sliding(self, i) else "full_attention"
-                for i in range(self.num_hidden_layers)
-            ]
+            self.layer_types = ['sliding_attention' if check_is_sliding(self, i) else 'full_attention' for i in range(self.num_hidden_layers)]
         layer_type_validation(self.layer_types)
-
-        super().__init__(bos_token_id=bos_token_id,
-                         eos_token_id=eos_token_id,
-                         tie_word_embeddings=tie_word_embeddings,
-                         **kwargs)
-
-
-__all__ = ["Exaone4Config"]
+        super().__init__(bos_token_id=bos_token_id, eos_token_id=eos_token_id, tie_word_embeddings=tie_word_embeddings, **kwargs)
+__all__ = ['Exaone4Config']

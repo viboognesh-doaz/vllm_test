@@ -1,25 +1,12 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""
-KVConnectorBase Class for Distributed KV Cache & Hidden State communication
-
-The class provides two primary abstract methods:
-1. send_kv_caches_and_hidden_states(): Send KV caches and hidden states
-2. recv_kv_caches_and_hidden_states(): Recv KV caches and hidden states
-"""
-
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Union
-
-import torch
-
+from vllm.config import VllmConfig
 from vllm.distributed.kv_transfer.kv_connector.v1 import KVConnectorBase_V1
 from vllm.sequence import IntermediateTensors
-
+from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata
+import torch
+'\nKVConnectorBase Class for Distributed KV Cache & Hidden State communication\n\nThe class provides two primary abstract methods:\n1. send_kv_caches_and_hidden_states(): Send KV caches and hidden states\n2. recv_kv_caches_and_hidden_states(): Recv KV caches and hidden states\n'
 if TYPE_CHECKING:
-    from vllm.config import VllmConfig
-    from vllm.worker.model_runner import ModelInputForGPUWithSamplingMetadata
-
 
 class KVConnectorBase(ABC):
     """
@@ -31,12 +18,7 @@ class KVConnectorBase(ABC):
     """
 
     @abstractmethod
-    def __init__(
-        self,
-        rank: int,
-        local_rank: int,
-        config: "VllmConfig",
-    ):
+    def __init__(self, rank: int, local_rank: int, config: 'VllmConfig'):
         raise NotImplementedError
 
     @abstractmethod
@@ -52,14 +34,7 @@ class KVConnectorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def send_kv_caches_and_hidden_states(
-        self,
-        model_executable: torch.nn.Module,
-        model_input: "ModelInputForGPUWithSamplingMetadata",
-        kv_caches: list[torch.Tensor],
-        hidden_or_intermediate_states: Union[torch.Tensor,
-                                             IntermediateTensors],
-    ) -> None:
+    def send_kv_caches_and_hidden_states(self, model_executable: torch.nn.Module, model_input: 'ModelInputForGPUWithSamplingMetadata', kv_caches: list[torch.Tensor], hidden_or_intermediate_states: Union[torch.Tensor, IntermediateTensors]) -> None:
         """
         Send KV caches and hidden states to the connector.
 
@@ -82,16 +57,10 @@ class KVConnectorBase(ABC):
             None
 
         """
-
         raise NotImplementedError
 
     @abstractmethod
-    def recv_kv_caches_and_hidden_states(
-        self, model_executable: torch.nn.Module,
-        model_input: "ModelInputForGPUWithSamplingMetadata",
-        kv_caches: list[torch.Tensor]
-    ) -> tuple[Union[torch.Tensor, IntermediateTensors], bool,
-               "ModelInputForGPUWithSamplingMetadata"]:
+    def recv_kv_caches_and_hidden_states(self, model_executable: torch.nn.Module, model_input: 'ModelInputForGPUWithSamplingMetadata', kv_caches: list[torch.Tensor]) -> tuple[Union[torch.Tensor, IntermediateTensors], bool, 'ModelInputForGPUWithSamplingMetadata']:
         """
         Receive KV caches and hidden states from the connector.
 
@@ -121,8 +90,5 @@ class KVConnectorBase(ABC):
                 `bypass_model_exec=False`.
 
         """
-
         raise NotImplementedError
-
-
 KVConnectorBaseType = Union[KVConnectorBase, KVConnectorBase_V1]

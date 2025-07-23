@@ -1,16 +1,9 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional, TypeVar
-
 from torch import nn
-
+from typing import Any, Callable, Optional, TypeVar
 from vllm.logger import init_logger
 from vllm.utils import LRUCache
-
 logger = init_logger(__name__)
-
 
 class AdapterModel(ABC):
 
@@ -19,13 +12,8 @@ class AdapterModel(ABC):
 
     @abstractmethod
     def from_local_checkpoint(cls, model_dir, model_id=None, **kwargs):
-        # Common initialization code
-        # Load weights or embeddings from local checkpoint
-        raise NotImplementedError("Subclasses must implement this method.")
-
-
+        raise NotImplementedError('Subclasses must implement this method.')
 T = TypeVar('T')
-
 
 class AdapterLRUCache(LRUCache[int, T]):
 
@@ -34,24 +22,19 @@ class AdapterLRUCache(LRUCache[int, T]):
         self.deactivate_fn = deactivate_fn
 
     def _on_remove(self, key: int, value: Optional[T]):
-        logger.debug("Removing adapter int id: %d", key)
+        logger.debug('Removing adapter int id: %d', key)
         self.deactivate_fn(key)
         return super()._on_remove(key, value)
 
-
 class AdapterModelManager(ABC):
 
-    def __init__(
-        self,
-        model: nn.Module,
-    ):
+    def __init__(self, model: nn.Module):
         """Create a AdapterModelManager and adapter for a given model.
         Args:
             model: the model to be adapted.
         """
         self.model: nn.Module = model
         self._registered_adapters: dict[int, Any] = {}
-        # Dict instead of a Set for compatibility with LRUCache.
         self._active_adapters: dict[int, None] = {}
         self.adapter_type = 'Adapter'
         self._last_mapping = None

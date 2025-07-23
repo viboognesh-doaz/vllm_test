@@ -1,19 +1,12 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
 from __future__ import annotations
-
-import enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-
+from vllm.config import VllmConfig
+from vllm.transformers_utils.tokenizer import AnyTokenizer
+import enum
+import torch
 if TYPE_CHECKING:
-    import torch
-
-    from vllm.config import VllmConfig
-    from vllm.transformers_utils.tokenizer import AnyTokenizer
-
 
 class StructuredOutputOptions(enum.Enum):
     JSON = enum.auto()
@@ -22,10 +15,7 @@ class StructuredOutputOptions(enum.Enum):
     GRAMMAR = enum.auto()
     CHOICE = enum.auto()
     STRUCTURAL_TAG = enum.auto()
-
-
 StructuredOutputKey = tuple[StructuredOutputOptions, str]
-
 
 class StructuredOutputGrammar(ABC):
     """Request-level backend for structured output requests."""
@@ -93,18 +83,15 @@ class StructuredOutputGrammar(ABC):
         Resets the state of the structured output grammar.
         """
 
-
 @dataclass
 class StructuredOutputBackend(ABC):
     """Engine-level backend for structured output requests."""
-
     vllm_config: VllmConfig
     tokenizer: AnyTokenizer
     vocab_size: int
 
     @abstractmethod
-    def compile_grammar(self, request_type: StructuredOutputOptions,
-                        grammar_spec: str) -> StructuredOutputGrammar:
+    def compile_grammar(self, request_type: StructuredOutputOptions, grammar_spec: str) -> StructuredOutputGrammar:
         """
         Compiles a grammar specification into a structured output grammar.
 

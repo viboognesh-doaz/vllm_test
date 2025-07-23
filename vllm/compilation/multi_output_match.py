@@ -1,19 +1,13 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-
-import abc
-import operator
 from abc import abstractmethod
 from collections.abc import Iterable
-
 from torch import fx
 from torch._higher_order_ops.auto_functionalize import auto_functionalized
 from torch._inductor import pattern_matcher as pm
 from torch._ops import OpOverload
 from torch.fx import Node
-
 from vllm.compilation.fx_utils import find_auto_fn
-
+import abc
+import operator
 
 class MultiOutputMatch(abc.ABC):
     """
@@ -76,19 +70,14 @@ class MultiOutputMatch(abc.ABC):
         This is done to avoid use-before-definition errors after inserting
         replacement nodes.
         """
-
-        # match.nodes is not guaranteed to be sorted.
-        # Find the last node in the match.
         for last_node_in_match in reversed(self.graph.nodes):
             if last_node_in_match in self.match.nodes:
                 break
         else:
-            raise ValueError("No nodes in graph")
-
+            raise ValueError('No nodes in graph')
         return self.graph.inserting_after(last_node_in_match)
 
-    def insert_getitems(self, tuple_node: fx.Node,
-                        indices: Iterable[int]) -> tuple[fx.Node, ...]:
+    def insert_getitems(self, tuple_node: fx.Node, indices: Iterable[int]) -> tuple[fx.Node, ...]:
         """
         Insert operator.getitem nodes to extract elements from a tuple node.
 
@@ -97,13 +86,10 @@ class MultiOutputMatch(abc.ABC):
         :return: Tuple of the new getitem nodes, corresponding to the indices.
         """
         with self.graph.inserting_after(tuple_node):
-            return tuple(
-                self.graph.call_function(operator.getitem, (tuple_node, idx))
-                for idx in indices)
+            return tuple((self.graph.call_function(operator.getitem, (tuple_node, idx)) for idx in indices))
 
     def insert_auto_fn(self, op: OpOverload, kwargs) -> Node:
         """
         Insert an auto_functionalized node with the given op and kwargs.
         """
-        return self.graph.call_function(auto_functionalized, (op, ),
-                                        kwargs=kwargs)
+        return self.graph.call_function(auto_functionalized, (op,), kwargs=kwargs)
