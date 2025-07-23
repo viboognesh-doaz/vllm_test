@@ -146,7 +146,18 @@ async def lifespan(app: FastAPI):
             ps = yappi.convert2pstats(stats.get())
             # TIME is total time spent within function excluding callees
             ps = ps.sort_stats(pstats.SortKey.TIME)
-            ps.dump_stats("profile.stats")  # Dump profiling info to profile.stats
+            base_filename="profile"
+            extension=".stats"
+            i = 1
+            profile_stats_path = ""
+            while True:
+                filename = f"{base_filename}{i}{extension}"
+                if not os.path.exists(filename):
+                    profile_stats_path = filename
+                    break
+                i += 1
+            ps.dump_stats(profile_stats_path)  
+            # Dump profiling info to profile.stats
             ps.print_stats(20)  
             if task is not None:
                 task.cancel()
