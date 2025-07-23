@@ -16,11 +16,11 @@ from vllm.outputs import RequestOutput
 from vllm.utils import PlaceholderModule
 import asyncio
 import io
-import librosa
 import math
 import numpy as np
 import time
 try:
+    import librosa
 except ImportError:
     librosa = PlaceholderModule('librosa')
 SpeechToTextResponse = Union[TranscriptionResponse, TranslationResponse]
