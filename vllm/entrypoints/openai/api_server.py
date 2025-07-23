@@ -13,6 +13,10 @@ import signal
 import socket
 import tempfile
 import uuid
+from starlette.concurrency import iterate_in_threadpool
+from vllm.entrypoints.openai.protocol import (
+            ChatCompletionStreamResponse, CompletionStreamResponse)
+from prometheus_client import multiprocess
 from argparse import Namespace
 from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
@@ -30,7 +34,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from prometheus_client import make_asgi_app
 from prometheus_fastapi_instrumentator import Instrumentator
-from starlette.concurrency import iterate_in_threadpool
 from starlette.datastructures import URL, Headers, MutableHeaders, State
 from starlette.routing import Mount
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -39,7 +42,8 @@ from typing_extensions import assert_never
 import vllm.envs as envs
 from vllm.config import VllmConfig
 from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.engine.async_llm_engine import AsyncLLMEngine  # type: ignore
+from vllm.engine.async_llm_engine import AsyncLLMEngine
+from vllm.v1.engine.async_llm import AsyncLLM# type: ignore
 from vllm.engine.multiprocessing.client import MQLLMEngineClient
 from vllm.engine.multiprocessing.engine import run_mp_engine
 from vllm.engine.protocol import EngineClient
@@ -105,9 +109,8 @@ from vllm.utils import (Device, FlexibleArgumentParser, get_open_zmq_ipc_path,
                         is_valid_ipv6_address, set_ulimit)
 from vllm.v1.metrics.prometheus import get_prometheus_registry
 from vllm.version import __version__ as VLLM_VERSION
-
-import yappi
 import pstats
+import yappi
 
 prometheus_multiproc_dir: tempfile.TemporaryDirectory
 
@@ -146,7 +149,8 @@ async def lifespan(app: FastAPI):
             ps = yappi.convert2pstats(stats.get())
             # TIME is total time spent within function excluding callees
             ps = ps.sort_stats(pstats.SortKey.TIME)
-            ps.dump_stats("profile.stats")  # Dump profiling info to profile.stats
+            # Dump profiling info to profile.stats
+            ps.dump_stats("profile.stats")  
             ps.print_stats(20)  
             if task is not None:
                 task.cancel()
@@ -154,6 +158,17 @@ async def lifespan(app: FastAPI):
     finally:
         # Ensure app state including engine ref is gc'd
         del app.state
+
+
+
+
+
+
+
+
+
+
+
 
 
 @asynccontextmanager
@@ -197,7 +212,7 @@ async def build_async_engine_client_from_engine_args(
                 "V1 is enabled, but got --disable-frontend-multiprocessing. "
                 "To disable frontend multiprocessing, set VLLM_USE_V1=0.")
 
-        from vllm.v1.engine.async_llm import AsyncLLM
+
         async_llm: Optional[AsyncLLM] = None
         client_index = client_config.pop(
             "client_index") if client_config else 0
@@ -321,7 +336,7 @@ async def build_async_engine_client_from_engine_args(
             # We need to set PROMETHEUS_MULTIPROC_DIR environment variable
             # before prometheus_client is imported.
             # See https://prometheus.github.io/client_python/multiprocess/
-            from prometheus_client import multiprocess
+
             multiprocess.mark_process_dead(engine_process.pid)
 
 
@@ -1332,8 +1347,7 @@ class ScalingMiddleware:
 def _extract_content_from_chunk(chunk_data: dict) -> str:
     """Extract content from a streaming response chunk."""
     try:
-        from vllm.entrypoints.openai.protocol import (
-            ChatCompletionStreamResponse, CompletionStreamResponse)
+
 
         # Try using Completion types for type-safe parsing
         if chunk_data.get('object') == 'chat.completion.chunk':
@@ -1367,7 +1381,7 @@ class SSEDecoder:
 
     def decode_chunk(self, chunk: bytes) -> list[dict]:
         """Decode a chunk of SSE data and return parsed events."""
-        import json
+
 
         try:
             chunk_str = chunk.decode('utf-8')
@@ -1413,7 +1427,7 @@ class SSEDecoder:
 
 def _log_streaming_response(response, response_body: list) -> None:
     """Log streaming response with robust SSE parsing."""
-    from starlette.concurrency import iterate_in_threadpool
+
 
     sse_decoder = SSEDecoder()
     chunk_count = 0
